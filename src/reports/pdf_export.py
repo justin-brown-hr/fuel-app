@@ -8,6 +8,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from src.config import cars_loc_prefixes
+
 from .attention import extract_attention_items, format_attention_summary_text
 
 
@@ -130,8 +132,9 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
     )
 
     cars = att["cars_not_charged"]
+    locs = "/".join(cars_loc_prefixes(branch)) or branch
     add_section(
-        f"3. Cars+ — RA not charged ({len(cars)})",
+        f"3. Cars+ — not billed at {locs} ({len(cars)})",
         ["Date", "Litres", "RA #", "Notes"],
         _cars_rows(cars),
     )

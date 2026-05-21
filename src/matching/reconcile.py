@@ -340,8 +340,9 @@ def reconcile(
         cars_um: list[UnmatchedLitres] = []
         if cars_rows:
             cars_um = reconcile_cars_plus(
-                [r for r in branch_rows if r.branch == branch],
-                [r for r in cars_rows if r.branch == branch],
+                branch_rows,
+                cars_rows,
+                branch=branch,
                 operational_only=True,
             )
             all_unmatched.extend(cars_um)

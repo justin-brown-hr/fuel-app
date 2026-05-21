@@ -78,8 +78,12 @@ def format_attention_summary_text(report: dict[str, Any]) -> str:
             f"* **{n_tab}** branch tab row(s) — on WHN sheet, no matching card line"
         )
     if n_cars:
+        from src.config import cars_loc_prefixes
+
+        locs = "/".join(cars_loc_prefixes(branch)) or branch
         lines.append(
-            f"* **{n_cars}** operational fill(s) — RA on tab, not charged on Cars+ that date"
+            f"* **{n_cars}** operational fill(s) — not billed on Cars+ at **{locs}** "
+            f"(that date & RA; other locations not counted)"
         )
     if n_cred:
         lines.append(

@@ -1,5 +1,6 @@
 """Match branch tab RAs to Cars+ fuel charges (customer billing)."""
 
+from src.config import branch_tab_code, cars_loc_prefixes, filter_cars_for_branch
 from src.importers.utils import normalize_ra
 from src.models import BranchLitresRow, CarsPlusRow, UnmatchedLitres
 
@@ -11,16 +12,18 @@ def reconcile_cars_plus(
     branch_rows: list[BranchLitresRow],
     cars_rows: list[CarsPlusRow],
     *,
+    branch: str,
     operational_only: bool = True,
 ) -> list[UnmatchedLitres]:
     """
-    Flag branch tab rows (with a real RA) that have no Cars+ fuel charge on the same date.
-    NONREV rows are skipped when operational_only is True.
+    Flag branch tab rows (with a real RA) that have no Cars+ fuel charge on the same date
+    at this branch's Cars+ locations (RA Loc Out prefix, e.g. WHN/WNU for Whangarei).
     """
+    loc_label = "/".join(cars_loc_prefixes(branch)) or branch_tab_code(branch)
     branch_items = [
         r
         for r in branch_rows
-        if not is_branch_nonrev(r) or not operational_only
+        if r.branch == branch and not (operational_only and is_branch_nonrev(r))
     ]
     branch_items = [
         r
@@ -28,8 +31,10 @@ def reconcile_cars_plus(
         if r.ra_number and r.ra_number[0].isdigit()
     ]
 
+    loc_cars = filter_cars_for_branch(cars_rows, branch)
+
     billed_by_date: dict[str, list[tuple[str, CarsPlusRow]]] = {}
-    for c in cars_rows:
+    for c in loc_cars:
         if not c.ra_number or not c.ra_number[0].isdigit():
             continue
         d = c.transaction_date.isoformat()
@@ -37,8 +42,6 @@ def reconcile_cars_plus(
 
     unmatched: list[UnmatchedLitres] = []
     for row in branch_items:
-        if is_branch_nonrev(row):
-            continue
         bra = normalize_ra(row.ra_number)
         if not bra:
             continue
@@ -51,13 +54,16 @@ def reconcile_cars_plus(
         if not found:
             unmatched.append(
                 UnmatchedLitres(
-                    branch=row.branch,
+                    branch=branch,
                     ra_number=row.ra_number,
                     vehicle_label=row.vehicle_label,
                     transaction_date=row.transaction_date,
                     litres=row.litres,
                     time=row.time,
-                    reason="Branch tab litres — not charged on Cars+ (same RA/date)",
+                    reason=(
+                        f"Not billed at {loc_label} on Cars+ (same date & RA; "
+                        f"other locations ignored)"
+                    ),
                     source="cars_plus",
                     stage="cars_plus",
                 )

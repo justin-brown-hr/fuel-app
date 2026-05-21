@@ -5,7 +5,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from src.config import DATA_DIR, DB_PATH
+from src.config import DATA_DIR, DB_PATH, cars_row_at_branch_location
 from src.matching.credits import is_credit_litres
 from src.matching.reconcile import BranchSummary
 from src.models import BranchLitresRow, CarsPlusRow, FuelStatementRow, UnmatchedLitres
@@ -460,7 +460,7 @@ class Database:
             ).fetchall()
             billed = conn.execute(
                 """
-                SELECT ra_number, transaction_date, time, fuel_charge, fuel_type
+                SELECT ra_number, ra_loc_out, transaction_date, time, fuel_charge, fuel_type
                 FROM cars_plus WHERE batch_id = ? AND branch = ?
                 ORDER BY transaction_date, ra_number
                 """,
@@ -512,10 +512,16 @@ class Database:
 
         summary = self.get_branch_summary(batch_id, branch) or {}
 
+        billed_at_branch = [
+            dict(r)
+            for r in billed
+            if cars_row_at_branch_location(r["ra_loc_out"] or "", branch)
+        ]
+
         return {
             "branch": branch,
             "litres": [dict(r) for r in litres],
-            "billed": [dict(r) for r in billed],
+            "billed": billed_at_branch,
             "statement": [dict(r) for r in statement],
             "unmatched": um_list,
             "unmatched_statement_stage1": stmt_s1,

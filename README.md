@@ -55,16 +55,37 @@ Or with sample files from `docs/`:
 3. Choose a branch and review unmatched litres
 4. Click **Export PDF**
 
-## Build Windows executable
+## Build Windows executable (for client)
 
-On a Windows machine with Python installed:
+**Must be built on Windows** (PyInstaller cannot cross-compile the GUI from Linux).
 
-```bash
-pip install pyinstaller
-pyinstaller --windowed --name FuelReconcile run.py
+### Option A — double-click build script
+
+1. Install [Python 3.10+](https://www.python.org/downloads/) and tick **Add python.exe to PATH**.
+2. Open `build\windows\build.bat` (or run `build.ps1` in PowerShell).
+3. When finished, zip the folder `dist\FuelReconcile` and send it to the client.
+
+The client runs **FuelReconcile.exe** inside that folder. See `docs/WINDOWS_INSTALL.md`.
+
+### Option B — manual commands
+
+```bat
+cd fuel_app
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt -r requirements-build.txt
+pyinstaller fuel_reconcile.spec --noconfirm --clean
 ```
 
-The executable will be under `dist/FuelReconcile/`. Test on a PC without Python installed.
+Output: `dist\FuelReconcile\FuelReconcile.exe`
+
+### GitHub Actions
+
+Push to `main` or run the **Build Windows app** workflow manually. Download the **FuelReconcile-Windows** artifact (zip of `dist/FuelReconcile`).
+
+### Packaged app data
+
+On Windows, the SQLite database is stored at `%LOCALAPPDATA%\FuelReconcile\fuel_app.db` (not beside the `.exe`), so imports persist across updates.
 
 ## Project layout
 
@@ -84,7 +105,7 @@ docs/            # Client sample files
 
 1. **Stage 1** — Branch tab **including NONREV** vs fuel statement (litres). NONREV rows (e.g. 8.89L on 9 Apr) match statement lines that were wrongly flagged before.
 2. **Stage 2** — **Operational** branch tab only (NONREV excluded) vs fuel statement — use for “missing on WHN tab” follow-up.
-3. **Cars+** — Branch **RA numbers** vs Cars+ fuel charges on the same date (has the branch charged the customer?).
+3. **Cars+** — Branch tab **RA numbers** vs Cars+ fuel charges on the same date, using only that branch’s **RA Loc Out** codes (e.g. WHN/WNU for Whangarei — not Taupo, Auckland, etc.).
 
 Dates may differ between sheet and statement; matching is primarily by **litres** within the branch.
 

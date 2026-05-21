@@ -1,0 +1,41 @@
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "run.py"
+      - "requirements*.txt"
+      - "fuel_reconcile.spec"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller fuel_reconcile.spec --noconfirm --clean
+
+      - name: Add client docs
+        run: |
+          copy docs\USER_GUIDE.md dist\FuelReconcile\README.txt
+          copy docs\WINDOWS_INSTALL.md dist\FuelReconcile\INSTALL.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FuelReconcile-Windows
+          path: dist/FuelReconcile/
+          retention-days: 90

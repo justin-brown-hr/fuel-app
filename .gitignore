@@ -5,4 +5,5 @@ data/
 *.db
 dist/
 build/
-*.spec
+# keep fuel_reconcile.spec in repo; ignore PyInstaller cache only
+build/pyinstaller/
