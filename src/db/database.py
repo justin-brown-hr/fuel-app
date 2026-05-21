@@ -454,5 +454,10 @@ class Database:
             "unmatched_branch": branch_um,
             "credits_skipped_branch": credits_branch,
             "credits_skipped_statement": credits_statement,
+            "nonrev_skipped_branch": sum(
+                1
+                for r in litres
+                if "NONREV" in (r["ra_number"] or "").upper()
+            ),
             "summary": summary,
         }

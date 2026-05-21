@@ -34,4 +34,19 @@ def format_branch_summary_text(report: dict[str, Any]) -> str:
             "without a matching statement line"
         )
         lines.append("")
+    nonrev = report.get("nonrev_skipped_branch", 0)
+    if nonrev:
+        lines.append(f"* **{nonrev}** NONREV rows on branch tab excluded from matching")
+        lines.append("")
+    lines.extend(
+        [
+            "**How this report works:**",
+            "",
+            "* Compares **branch litres tab** vs **fuel card statement** (litres only).",
+            "* **NONREV** rows on the branch tab are excluded (not fuel fills).",
+            "* **Credit/reversal** lines on the statement are listed but not counted as missing fuel.",
+            "* **Cars+** is shown for reference only — billing in dollars is **not** used to decide missing litres.",
+            "",
+        ]
+    )
     return "\n".join(lines)

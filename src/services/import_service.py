@@ -15,6 +15,7 @@ class ImportResult:
     unmatched_count: int = 0
     credits_skipped_branch: int = 0
     credits_skipped_statement: int = 0
+    nonrev_skipped_branch: int = 0
     branches: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
@@ -67,6 +68,7 @@ class ImportService:
             result.unmatched_count = len(recon.unmatched)
             result.credits_skipped_branch = recon.credits_skipped_branch
             result.credits_skipped_statement = recon.credits_skipped_statement
+            result.nonrev_skipped_branch = recon.nonrev_skipped_branch
             self.db.update_batch_credits(
                 batch_id,
                 recon.credits_skipped_branch,

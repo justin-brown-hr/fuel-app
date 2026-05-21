@@ -12,6 +12,7 @@ from src.importers.utils import normalize_ra
 
 from .credits import is_credit_litres
 from .fuel_type import normalize_fuel_type
+from .nonrev import is_branch_nonrev
 
 # Allow small rounding differences between sheet and statement
 LITRE_TOLERANCE = 0.05
@@ -33,6 +34,7 @@ class ReconcileResult:
     unmatched: list[UnmatchedLitres]
     credits_skipped_branch: int = 0
     credits_skipped_statement: int = 0
+    nonrev_skipped_branch: int = 0
     branch_summaries: dict[str, BranchSummary] = field(default_factory=dict)
 
 
@@ -48,40 +50,6 @@ def is_statement_credit(row: FuelStatementRow) -> bool:
     )
 
 
-def _credit_offset_keys(rows: list[FuelStatementRow]) -> set[tuple]:
-    keys: set[tuple] = set()
-    for r in rows:
-        if r.litres < 0:
-            keys.add(
-                (
-                    r.branch,
-                    r.transaction_date.isoformat(),
-                    round(abs(r.litres), 2),
-                    normalize_fuel_type(r.product),
-                )
-            )
-    return keys
-
-
-def _strip_credit_offset_pairs(rows: list[FuelStatementRow]) -> list[FuelStatementRow]:
-    """Drop positive fill-ups that pair with a same-day credit reversal."""
-    offsets = _credit_offset_keys(rows)
-    return [
-        r
-        for r in rows
-        if not (
-            r.litres > 0
-            and (
-                r.branch,
-                r.transaction_date.isoformat(),
-                round(r.litres, 2),
-                normalize_fuel_type(r.product),
-            )
-            in offsets
-        )
-    ]
-
-
 def count_credits(
     branch_rows: list[BranchLitresRow],
     statement_rows: list[FuelStatementRow],
@@ -89,6 +57,33 @@ def count_credits(
     branch_credits = sum(1 for r in branch_rows if is_branch_credit(r))
     statement_credits = sum(1 for r in statement_rows if is_statement_credit(r))
     return branch_credits, statement_credits
+
+
+def count_nonrev(branch_rows: list[BranchLitresRow]) -> int:
+    return sum(1 for r in branch_rows if is_branch_nonrev(r))
+
+
+def _has_same_day_credit_twin(row: FuelStatementRow, stmt_branch: list[FuelStatementRow]) -> bool:
+    """Positive line paired with a same-day reversal on the statement."""
+    if row.litres <= 0:
+        return False
+    key = (
+        row.branch,
+        row.transaction_date.isoformat(),
+        round(abs(row.litres), 2),
+        normalize_fuel_type(row.product),
+    )
+    for other in stmt_branch:
+        if other.litres < 0:
+            other_key = (
+                other.branch,
+                other.transaction_date.isoformat(),
+                round(abs(other.litres), 2),
+                normalize_fuel_type(other.product),
+            )
+            if key == other_key:
+                return True
+    return False
 
 
 def _litres_match(a: float, b: float) -> bool:
@@ -181,7 +176,12 @@ def reconcile(
     del cars_rows
 
     credits_branch, credits_statement = count_credits(branch_rows, statement_rows)
-    branch_active = [r for r in branch_rows if not is_branch_credit(r)]
+    nonrev_branch = count_nonrev(branch_rows)
+    branch_active = [
+        r
+        for r in branch_rows
+        if not is_branch_credit(r) and not is_branch_nonrev(r)
+    ]
 
     branches = sorted(
         {r.branch for r in branch_rows}
@@ -193,9 +193,10 @@ def reconcile(
 
     for branch in branches:
         stmt_branch = [r for r in statement_rows if r.branch == branch]
-        stmt_all = _strip_credit_offset_pairs(stmt_branch)
         stmt_credits = [r for r in stmt_branch if is_statement_credit(r)]
-        stmt_active = [r for r in stmt_all if not is_statement_credit(r)]
+        # Keep positive fills even when a same-day credit reversal exists (branch
+        # dates often differ from the statement, e.g. 2.25L recorded 15 Apr vs 10 Apr).
+        stmt_active = [r for r in stmt_branch if not is_statement_credit(r)]
         branch_items = [r for r in branch_active if r.branch == branch]
 
         um_branch, um_stmt, matched = _match_branch_pool(branch_items, stmt_active)
@@ -204,8 +205,6 @@ def reconcile(
 
         for row in um_branch:
             note = f"Not found on {tab} tab"
-            if row.vehicle_label and "NONREV" in row.vehicle_label.upper():
-                note += " (NONREV)"
             unmatched.append(
                 UnmatchedLitres(
                     branch=row.branch,
@@ -220,6 +219,8 @@ def reconcile(
             )
 
         for row in um_stmt:
+            if _has_same_day_credit_twin(row, stmt_branch):
+                continue
             unmatched.append(
                 UnmatchedLitres(
                     branch=row.branch,
@@ -252,10 +253,14 @@ def reconcile(
                 )
             )
 
-        stmt_unmatched_ops = len(um_stmt)
+        stmt_unmatched_ops = sum(
+            1
+            for row in um_stmt
+            if not _has_same_day_credit_twin(row, stmt_branch)
+        )
         summaries[branch] = BranchSummary(
             branch=branch,
-            statement_total=len(stmt_all),
+            statement_total=len(stmt_active),
             matched_count=matched,
             statement_unmatched_count=stmt_unmatched_ops + len(stmt_credits),
             branch_unmatched_count=len(um_branch),
@@ -267,5 +272,6 @@ def reconcile(
         unmatched=unmatched,
         credits_skipped_branch=credits_branch,
         credits_skipped_statement=credits_statement,
+        nonrev_skipped_branch=nonrev_branch,
         branch_summaries=summaries,
     )

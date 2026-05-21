@@ -43,6 +43,12 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
             f"Generated: {datetime.now().strftime('%d %b %Y %H:%M')}",
             styles["Normal"],
         ),
+        Paragraph(
+            "<i>Produced by Fuel Reconcile app. "
+            "Litres matching uses branch tab vs fuel statement only; "
+            "Cars+ does not determine missing litres.</i>",
+            styles["Normal"],
+        ),
         Spacer(1, 0.3 * cm),
         Paragraph(format_branch_summary_text(report).replace("\n", "<br/>"), styles["Normal"]),
         Spacer(1, 0.5 * cm),
@@ -91,9 +97,14 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
         ],
     )
 
-    branch_um = report.get("unmatched_branch", [])
+    branch_um = [
+        r
+        for r in report.get("unmatched_branch", [])
+        if "NONREV" not in (r.get("ra_number") or "").upper()
+        and "NONREV" not in (r.get("vehicle_label") or "").upper()
+    ]
     add_section(
-        "Branch tab entries without matching statement",
+        "Branch tab entries without matching statement (excludes NONREV)",
         ["Date", "Litres", "RA #", "Notes"],
         [
             [

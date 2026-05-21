@@ -209,6 +209,7 @@ class MainWindow(QMainWindow):
             f"Cars+: {result.cars_plus_count} | "
             f"Statement: {result.fuel_statement_count} | "
             f"Unmatched: {result.unmatched_count} | "
+            f"NONREV skipped: {result.nonrev_skipped_branch} | "
             f"Credits skipped: {credits_total} "
             f"(sheet {result.credits_skipped_branch}, "
             f"statement {result.credits_skipped_statement})"
