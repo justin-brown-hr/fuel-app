@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from src.db.database import Database
-from src.reports.branch_summary import format_branch_summary_text
+from src.reports.attention import extract_attention_items, format_attention_summary_text
 from src.reports.pdf_export import export_branch_pdf
 from src.services.import_service import ImportService
 
@@ -29,6 +29,28 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     )
     p.add_argument("--label", default="CLI import", help="Import batch label")
     return p.parse_args(argv)
+
+
+def _print_rows(title: str, rows: list[dict], cols: tuple[str, ...]) -> None:
+    if not rows:
+        return
+    print(f"\n{title} ({len(rows)}):")
+    hdr = f"{'Date':<12} {'Litres':>8}  "
+    if "fuel" in cols:
+        print(hdr + f"{'Fuel':<8}  Action")
+        for r in rows:
+            print(
+                f"{r['transaction_date']:<12} {r['litres']:>7.2f}L  "
+                f"{(r.get('fuel_type') or ''):<8}  On card; not on tab"
+            )
+    elif "ra" in cols:
+        print(hdr + f"{'RA #':<12}  Action")
+        for r in rows:
+            print(
+                f"{r['transaction_date']:<12} {r['litres']:>7.2f}L  "
+                f"{(r.get('ra_number') or ''):<12}  "
+                f"{r.get('reason', 'On tab; no card line')[:40]}"
+            )
 
 
 def run_cli(argv: list[str] | None = None) -> int:
@@ -60,11 +82,6 @@ def run_cli(argv: list[str] | None = None) -> int:
     )
     if result.errors:
         print("  Warnings:", "; ".join(result.errors))
-    if result.credits_skipped_branch or result.credits_skipped_statement:
-        print(
-            f"  Credits skipped: sheet {result.credits_skipped_branch}, "
-            f"statement {result.credits_skipped_statement}"
-        )
 
     if not result.branches:
         print("No branches found.")
@@ -80,45 +97,23 @@ def run_cli(argv: list[str] | None = None) -> int:
         print("\nBranches:")
         for b in result.branches:
             s = db.get_branch_summary(result.batch_id, b) or {}
+            s1 = s.get("stage1", {})
             print(
-                f"  {b}: statement={s.get('statement_total', '?')} "
-                f"matched={s.get('matched_count', '?')} "
-                f"unmatched={s.get('statement_unmatched_count', '?')}"
+                f"  {b}: matched={s1.get('matched_count', '?')}/"
+                f"{s1.get('statement_total', '?')} "
+                f"action gaps={s1.get('genuine_missing_count', '?')}"
             )
 
     report = db.get_branch_report(result.batch_id, branch)
-    print("\n" + format_branch_summary_text(report))
+    att = extract_attention_items(report)
+    print("\n" + format_attention_summary_text(report))
 
-    stmt_s1 = [
-        r for r in report.get("unmatched_statement_stage1", [])
-        if not r.get("is_credit")
-    ]
-    if stmt_s1:
-        print("\nStage 1 — Confirmed NOT on WHN tab (incl. NONREV):")
-        print(f"{'Date':<12} {'Litres':>8}  {'Fuel':<8}  Notes")
-        for r in stmt_s1:
-            print(
-                f"{r['transaction_date']:<12} {r['litres']:>7.2f}L  "
-                f"{(r.get('fuel_type') or ''):<8}  {r.get('reason', '')}"
-            )
-    stmt_s2 = [
-        r for r in report.get("unmatched_statement_stage2", [])
-        if not r.get("is_credit")
-    ]
-    if stmt_s2:
-        print("\nStage 2 — Statement unmatched (operational):")
-        print(f"{'Date':<12} {'Litres':>8}  {'Fuel':<8}  Notes")
-        for r in stmt_s2[:30]:
-            print(
-                f"{r['transaction_date']:<12} {r['litres']:>7.2f}L  "
-                f"{(r.get('fuel_type') or ''):<8}  {r.get('reason', '')}"
-            )
-    cars_um = report.get("unmatched_cars_plus", [])
-    if cars_um:
-        print(f"\nCars+ not charged ({len(cars_um)} rows) — see PDF for full list")
+    _print_rows("1. Card not on branch tab", att["card_not_on_tab"], ("fuel",))
+    _print_rows("2. Branch tab without card", att["tab_not_on_card"], ("ra",))
+    _print_rows("3. Cars+ not charged", att["cars_not_charged"], ("ra",))
 
     if args.export:
         export_branch_pdf(report, args.export)
-        print(f"\nPDF saved: {args.export}")
+        print(f"\nPDF saved: {args.export} ({att['total_action_items']} action items)")
 
     return 0

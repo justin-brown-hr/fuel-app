@@ -19,7 +19,10 @@ from PySide6.QtWidgets import (
 
 from src.config import APP_NAME, APP_VERSION
 from src.db.database import Database
-from src.reports.branch_summary import format_branch_summary_text
+from src.reports.attention import (
+    attention_rows_for_table,
+    format_attention_summary_text,
+)
 from src.reports.pdf_export import export_branch_pdf
 from src.services.import_service import ImportService
 
@@ -251,56 +254,23 @@ class MainWindow(QMainWindow):
         report = self.db.get_branch_report(
             self.current_batch_id, self.branch_combo.currentText()
         )
-        stmt_um = report.get("unmatched_statement_stage2", report.get("unmatched_statement", []))
-        stmt_um = [r for r in stmt_um if not r.get("is_credit")]
+        self.summary_label.setText(format_attention_summary_text(report))
 
-        self.summary_label.setText(format_branch_summary_text(report))
-
-        rows = stmt_um if stmt_um else report.get("litres", [])
-        if stmt_um:
-            headers = ["Date", "Litres", "Fuel type", "Notes"]
-            self.table.setColumnCount(len(headers))
-            self.table.setHorizontalHeaderLabels(headers)
-            self.table.setRowCount(len(rows))
-            for i, r in enumerate(rows):
-                vals = [
-                    r["transaction_date"],
-                    f"{r['litres']:.2f}L",
-                    r.get("fuel_type") or "",
-                    r.get("reason", ""),
-                ]
-                for j, v in enumerate(vals):
-                    self.table.setItem(i, j, QTableWidgetItem(str(v)))
-        else:
-            headers = ["Date", "RA #", "Vehicle", "Litres", "Time"]
-            self.table.setColumnCount(len(headers))
-            self.table.setHorizontalHeaderLabels(headers)
-            self.table.setRowCount(len(rows))
-            for i, r in enumerate(rows):
-                vals = [
-                    r["transaction_date"],
-                    r.get("ra_number", ""),
-                    r.get("vehicle_label", ""),
-                    f"{r['litres']:.2f}",
-                    r.get("time") or "",
-                ]
-                for j, v in enumerate(vals):
-                    self.table.setItem(i, j, QTableWidgetItem(str(v)))
-
-        cars_um = report.get("unmatched_cars_plus", [])
-        extra = []
-        if branch_um:
-            extra.append(f"Stage 2 branch-only: {len(branch_um)}")
-        if cars_um:
-            extra.append(f"Cars+ not charged: {len(cars_um)}")
-        s1_miss = report.get("unmatched_statement_stage1", [])
-        s1_genuine = [r for r in s1_miss if not r.get("is_credit")]
-        if s1_genuine:
-            extra.append(f"Stage 1 stmt missing (incl. NONREV check): {len(s1_genuine)}")
-        if extra:
-            self.summary_label.setText(
-                self.summary_label.text() + "\n\n" + " | ".join(extra) + " (see PDF)"
-            )
+        rows = attention_rows_for_table(report)
+        headers = ["Type", "Date", "Litres", "RA / fuel", "Action"]
+        self.table.setColumnCount(len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
+        self.table.setRowCount(len(rows))
+        for i, r in enumerate(rows):
+            vals = [
+                r["category"],
+                r["transaction_date"],
+                f"{r['litres']:.2f}L",
+                r.get("detail") or "",
+                r.get("action") or "",
+            ]
+            for j, v in enumerate(vals):
+                self.table.setItem(i, j, QTableWidgetItem(str(v)))
         self.table.resizeColumnsToContents()
 
     def _export_pdf(self) -> None:

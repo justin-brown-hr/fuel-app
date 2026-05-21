@@ -241,8 +241,10 @@ def _reconcile_branch_stage(
                 transaction_date=row.transaction_date,
                 litres=row.litres,
                 time=row.time,
-                reason=f"Not found on {tab} tab"
-                + (" (NONREV row)" if nonrev else f" [{stage_label}]"),
+                reason=(
+                    "On branch tab; no matching fuel card line"
+                    + (" (NONREV)" if nonrev else "")
+                ),
                 source="branch_sheet",
                 stage=stage,
                 is_nonrev=nonrev,
