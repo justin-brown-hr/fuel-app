@@ -68,16 +68,19 @@ def _parse_whangarei_sheet(df: pd.DataFrame, branch: str) -> list[BranchLitresRo
         tx_date = parse_excel_date(r.iloc[6])
         if tx_date is None:
             continue
-        ra = normalize_ra(r.iloc[4])
+        col4 = str(r.iloc[4] or "").strip()
+        is_nonrev = "NONREV" in col4.upper()
+        ra = "" if is_nonrev else normalize_ra(r.iloc[4])
         rows.append(
             BranchLitresRow(
                 branch=branch,
                 vehicle_label=str(r.iloc[0] or "").strip(),
-                ra_number=ra,
+                ra_number=ra if ra else ("NONREV" if is_nonrev else ""),
                 transaction_date=tx_date,
                 litres=litres,
                 time=parse_time(r.iloc[5]),
                 amount=amount,
+                is_nonrev=is_nonrev,
             )
         )
     return rows

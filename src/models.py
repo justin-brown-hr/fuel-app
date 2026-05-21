@@ -13,6 +13,7 @@ class BranchLitresRow:
     time: Optional[str] = None
     amount: Optional[float] = None
     day_of_month: Optional[int] = None
+    is_nonrev: bool = False
 
 
 @dataclass
@@ -54,3 +55,5 @@ class UnmatchedLitres:
     supplier: Optional[str] = None
     fuel_type: Optional[str] = None
     is_credit: bool = False
+    stage: str = "stage2"  # stage1 | stage2 | cars_plus
+    is_nonrev: bool = False

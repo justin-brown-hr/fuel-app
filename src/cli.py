@@ -89,15 +89,21 @@ def run_cli(argv: list[str] | None = None) -> int:
     report = db.get_branch_report(result.batch_id, branch)
     print("\n" + format_branch_summary_text(report))
 
-    stmt_um = report.get("unmatched_statement", [])
-    if stmt_um:
-        print("\nStatement unmatched:")
+    stmt_s2 = [
+        r for r in report.get("unmatched_statement_stage2", [])
+        if not r.get("is_credit")
+    ]
+    if stmt_s2:
+        print("\nStage 2 — Statement unmatched (operational):")
         print(f"{'Date':<12} {'Litres':>8}  {'Fuel':<8}  Notes")
-        for r in stmt_um:
+        for r in stmt_s2[:30]:
             print(
                 f"{r['transaction_date']:<12} {r['litres']:>7.2f}L  "
                 f"{(r.get('fuel_type') or ''):<8}  {r.get('reason', '')}"
             )
+    cars_um = report.get("unmatched_cars_plus", [])
+    if cars_um:
+        print(f"\nCars+ not charged ({len(cars_um)} rows) — see PDF for full list")
 
     if args.export:
         export_branch_pdf(report, args.export)

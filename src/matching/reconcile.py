@@ -10,23 +10,33 @@ from src.models import (
 from src.config import branch_tab_code
 from src.importers.utils import normalize_ra
 
+from .cars_reconcile import reconcile_cars_plus
+from .ra_match import ra_matches
 from .credits import is_credit_litres
 from .fuel_type import normalize_fuel_type
 from .nonrev import is_branch_nonrev
 
-# Allow small rounding differences between sheet and statement
 LITRE_TOLERANCE = 0.05
 
 
 @dataclass
-class BranchSummary:
-    branch: str
+class StageSummary:
     statement_total: int = 0
     matched_count: int = 0
     statement_unmatched_count: int = 0
     branch_unmatched_count: int = 0
     credit_reversal_count: int = 0
     genuine_missing_count: int = 0
+    branch_rows_included: int = 0
+
+
+@dataclass
+class BranchSummary:
+    branch: str
+    stage1: StageSummary = field(default_factory=StageSummary)
+    stage2: StageSummary = field(default_factory=StageSummary)
+    cars_plus_unbilled: int = 0
+    nonrev_row_count: int = 0
 
 
 @dataclass
@@ -64,7 +74,6 @@ def count_nonrev(branch_rows: list[BranchLitresRow]) -> int:
 
 
 def _has_same_day_credit_twin(row: FuelStatementRow, stmt_branch: list[FuelStatementRow]) -> bool:
-    """Positive line paired with a same-day reversal on the statement."""
     if row.litres <= 0:
         return False
     key = (
@@ -90,19 +99,6 @@ def _litres_match(a: float, b: float) -> bool:
     return abs(a - b) <= LITRE_TOLERANCE
 
 
-def _ra_matches(branch_ra: str, other_ra: str) -> bool:
-    if not branch_ra or not other_ra:
-        return True
-    if branch_ra == other_ra:
-        return True
-    shorter, longer = (
-        (branch_ra, other_ra) if len(branch_ra) <= len(other_ra) else (other_ra, branch_ra)
-    )
-    if len(shorter) >= 6 and longer.startswith(shorter):
-        return True
-    return False
-
-
 def _date_proximity_score(branch_date, statement_date) -> int:
     days = abs((branch_date - statement_date).days)
     if days == 0:
@@ -121,7 +117,7 @@ def _match_score(branch: BranchLitresRow, statement: FuelStatementRow) -> int:
         return -1
     bra = normalize_ra(branch.ra_number)
     stmt_ra = normalize_ra(statement.ra_number or "")
-    if stmt_ra and bra and not _ra_matches(bra, stmt_ra):
+    if stmt_ra and bra and not ra_matches(bra, stmt_ra):
         return -1
     return 1000 + _date_proximity_score(branch.transaction_date, statement.transaction_date)
 
@@ -163,113 +159,159 @@ def _fuel_type_label(product: str, litres: float) -> str:
     return "91" if litres > 0 else ""
 
 
+def _branch_items_for_stage(
+    branch_rows: list[BranchLitresRow], branch: str, include_nonrev: bool
+) -> list[BranchLitresRow]:
+    items = [
+        r
+        for r in branch_rows
+        if r.branch == branch and not is_branch_credit(r)
+    ]
+    if not include_nonrev:
+        items = [r for r in items if not is_branch_nonrev(r)]
+    return items
+
+
+def _reconcile_branch_stage(
+    branch: str,
+    branch_rows: list[BranchLitresRow],
+    statement_rows: list[FuelStatementRow],
+    *,
+    stage: str,
+    include_nonrev: bool,
+) -> tuple[list[UnmatchedLitres], StageSummary]:
+    stmt_branch = [r for r in statement_rows if r.branch == branch]
+    stmt_credits = [r for r in stmt_branch if is_statement_credit(r)]
+    stmt_active = [r for r in stmt_branch if not is_statement_credit(r)]
+    branch_items = _branch_items_for_stage(branch_rows, branch, include_nonrev)
+
+    um_branch, um_stmt, matched = _match_branch_pool(branch_items, stmt_active)
+    tab = branch_tab_code(branch)
+    unmatched: list[UnmatchedLitres] = []
+    stage_label = "Stage 1 (incl. NONREV)" if include_nonrev else "Stage 2 (operational)"
+
+    unmatched = []
+    for row in um_branch:
+        nonrev = is_branch_nonrev(row)
+        unmatched.append(
+            UnmatchedLitres(
+                branch=row.branch,
+                ra_number=row.ra_number or ("NONREV" if nonrev else ""),
+                vehicle_label=row.vehicle_label,
+                transaction_date=row.transaction_date,
+                litres=row.litres,
+                time=row.time,
+                reason=f"Not found on {tab} tab"
+                + (" (NONREV row)" if nonrev else f" [{stage_label}]"),
+                source="branch_sheet",
+                stage=stage,
+                is_nonrev=nonrev,
+            )
+        )
+
+    for row in um_stmt:
+        if _has_same_day_credit_twin(row, stmt_branch):
+            continue
+        unmatched.append(
+            UnmatchedLitres(
+                branch=row.branch,
+                ra_number=row.ra_number or "",
+                vehicle_label=row.vehicle_name or row.product or row.supplier,
+                transaction_date=row.transaction_date,
+                litres=row.litres,
+                time=row.time,
+                reason=f"Not found in {tab} tab [{stage_label}]",
+                source="fuel_statement",
+                supplier=row.supplier,
+                fuel_type=_fuel_type_label(row.product, row.litres),
+                stage=stage,
+            )
+        )
+
+    for row in stmt_credits:
+        unmatched.append(
+            UnmatchedLitres(
+                branch=row.branch,
+                ra_number=row.ra_number or "",
+                vehicle_label=row.product or row.supplier,
+                transaction_date=row.transaction_date,
+                litres=row.litres,
+                time=row.time,
+                reason="Credit/reversal entry",
+                source="fuel_statement",
+                supplier=row.supplier,
+                fuel_type=_fuel_type_label(row.product, row.litres),
+                is_credit=True,
+                stage=stage,
+            )
+        )
+
+    stmt_unmatched_ops = sum(
+        1 for row in um_stmt if not _has_same_day_credit_twin(row, stmt_branch)
+    )
+    summary = StageSummary(
+        statement_total=len(stmt_active),
+        matched_count=matched,
+        statement_unmatched_count=stmt_unmatched_ops + len(stmt_credits),
+        branch_unmatched_count=len(um_branch),
+        credit_reversal_count=len(stmt_credits),
+        genuine_missing_count=stmt_unmatched_ops,
+        branch_rows_included=len(branch_items),
+    )
+    return unmatched, summary
+
+
 def reconcile(
     branch_rows: list[BranchLitresRow],
     statement_rows: list[FuelStatementRow],
     cars_rows: list[CarsPlusRow] | None = None,
 ) -> ReconcileResult:
     """
-    Match litres between branch fuel sheets and fuel card statements (per branch).
-    Matching is primarily by litres within the branch; dates may differ between sources.
-    Credit lines are listed separately and excluded from the matched count.
+    Stage 1: branch tab (including NONREV) vs fuel statement.
+    Stage 2: operational branch rows only (excludes NONREV) vs fuel statement.
+    Cars+: branch RA vs Cars+ fuel charges (operational RAs only).
     """
-    del cars_rows
-
     credits_branch, credits_statement = count_credits(branch_rows, statement_rows)
     nonrev_branch = count_nonrev(branch_rows)
-    branch_active = [
-        r
-        for r in branch_rows
-        if not is_branch_credit(r) and not is_branch_nonrev(r)
-    ]
 
     branches = sorted(
-        {r.branch for r in branch_rows}
-        | {r.branch for r in statement_rows}
+        {r.branch for r in branch_rows} | {r.branch for r in statement_rows}
     )
 
-    unmatched: list[UnmatchedLitres] = []
+    all_unmatched: list[UnmatchedLitres] = []
     summaries: dict[str, BranchSummary] = {}
 
     for branch in branches:
-        stmt_branch = [r for r in statement_rows if r.branch == branch]
-        stmt_credits = [r for r in stmt_branch if is_statement_credit(r)]
-        # Keep positive fills even when a same-day credit reversal exists (branch
-        # dates often differ from the statement, e.g. 2.25L recorded 15 Apr vs 10 Apr).
-        stmt_active = [r for r in stmt_branch if not is_statement_credit(r)]
-        branch_items = [r for r in branch_active if r.branch == branch]
-
-        um_branch, um_stmt, matched = _match_branch_pool(branch_items, stmt_active)
-
-        tab = branch_tab_code(branch)
-
-        for row in um_branch:
-            note = f"Not found on {tab} tab"
-            unmatched.append(
-                UnmatchedLitres(
-                    branch=row.branch,
-                    ra_number=row.ra_number,
-                    vehicle_label=row.vehicle_label,
-                    transaction_date=row.transaction_date,
-                    litres=row.litres,
-                    time=row.time,
-                    reason=note,
-                    source="branch_sheet",
-                )
-            )
-
-        for row in um_stmt:
-            if _has_same_day_credit_twin(row, stmt_branch):
-                continue
-            unmatched.append(
-                UnmatchedLitres(
-                    branch=row.branch,
-                    ra_number=row.ra_number or "",
-                    vehicle_label=row.vehicle_name or row.product or row.supplier,
-                    transaction_date=row.transaction_date,
-                    litres=row.litres,
-                    time=row.time,
-                    reason=f"Not found in {tab} tab",
-                    source="fuel_statement",
-                    supplier=row.supplier,
-                    fuel_type=_fuel_type_label(row.product, row.litres),
-                )
-            )
-
-        for row in stmt_credits:
-            unmatched.append(
-                UnmatchedLitres(
-                    branch=row.branch,
-                    ra_number=row.ra_number or "",
-                    vehicle_label=row.product or row.supplier,
-                    transaction_date=row.transaction_date,
-                    litres=row.litres,
-                    time=row.time,
-                    reason="Credit/reversal entry",
-                    source="fuel_statement",
-                    supplier=row.supplier,
-                    fuel_type=_fuel_type_label(row.product, row.litres),
-                    is_credit=True,
-                )
-            )
-
-        stmt_unmatched_ops = sum(
-            1
-            for row in um_stmt
-            if not _has_same_day_credit_twin(row, stmt_branch)
+        u1, s1 = _reconcile_branch_stage(
+            branch, branch_rows, statement_rows, stage="stage1", include_nonrev=True
         )
+        u2, s2 = _reconcile_branch_stage(
+            branch, branch_rows, statement_rows, stage="stage2", include_nonrev=False
+        )
+        all_unmatched.extend(u1)
+        all_unmatched.extend(u2)
+
+        cars_um: list[UnmatchedLitres] = []
+        if cars_rows:
+            cars_um = reconcile_cars_plus(
+                [r for r in branch_rows if r.branch == branch],
+                [r for r in cars_rows if r.branch == branch],
+                operational_only=True,
+            )
+            all_unmatched.extend(cars_um)
+
         summaries[branch] = BranchSummary(
             branch=branch,
-            statement_total=len(stmt_active),
-            matched_count=matched,
-            statement_unmatched_count=stmt_unmatched_ops + len(stmt_credits),
-            branch_unmatched_count=len(um_branch),
-            credit_reversal_count=len(stmt_credits),
-            genuine_missing_count=stmt_unmatched_ops,
+            stage1=s1,
+            stage2=s2,
+            cars_plus_unbilled=len(cars_um),
+            nonrev_row_count=sum(
+                1 for r in branch_rows if r.branch == branch and is_branch_nonrev(r)
+            ),
         )
 
     return ReconcileResult(
-        unmatched=unmatched,
+        unmatched=all_unmatched,
         credits_skipped_branch=credits_branch,
         credits_skipped_statement=credits_statement,
         nonrev_skipped_branch=nonrev_branch,

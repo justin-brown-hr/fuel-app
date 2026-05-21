@@ -80,16 +80,13 @@ data/            # SQLite database (created at runtime)
 docs/            # Client sample files
 ```
 
-## Matching logic
+## Matching logic (three checks)
 
-- Compare **branch litres sheet** ↔ **fuel statement** per branch, primarily by **litres** (dates may differ between sources).
-- When duplicate litre amounts exist, the closest date is preferred.
-- **Credits** (negative litres on the statement) appear in the report as “Credit/reversal entry” and are excluded from the matched count.
-- Per-branch summary (like `docs/refer_value.md`):
-  - Total statement fill-ups
-  - Matched count
-  - Genuine missing vs credit reversals
-- **Cars+** is stored for reference in PDF export only.
+1. **Stage 1** — Branch tab **including NONREV** vs fuel statement (litres). NONREV rows (e.g. 8.89L on 9 Apr) match statement lines that were wrongly flagged before.
+2. **Stage 2** — **Operational** branch tab only (NONREV excluded) vs fuel statement — use for “missing on WHN tab” follow-up.
+3. **Cars+** — Branch **RA numbers** vs Cars+ fuel charges on the same date (has the branch charged the customer?).
+
+Dates may differ between sheet and statement; matching is primarily by **litres** within the branch.
 
 ## Notes for production
 

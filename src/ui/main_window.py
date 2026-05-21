@@ -251,10 +251,8 @@ class MainWindow(QMainWindow):
         report = self.db.get_branch_report(
             self.current_batch_id, self.branch_combo.currentText()
         )
-        summary = report.get("summary", {})
-        stmt_um = report.get("unmatched_statement", [])
-        branch_um = report.get("unmatched_branch", [])
-        billed = report["billed"]
+        stmt_um = report.get("unmatched_statement_stage2", report.get("unmatched_statement", []))
+        stmt_um = [r for r in stmt_um if not r.get("is_credit")]
 
         self.summary_label.setText(format_branch_summary_text(report))
 
@@ -289,10 +287,19 @@ class MainWindow(QMainWindow):
                 for j, v in enumerate(vals):
                     self.table.setItem(i, j, QTableWidgetItem(str(v)))
 
+        cars_um = report.get("unmatched_cars_plus", [])
+        extra = []
         if branch_um:
+            extra.append(f"Stage 2 branch-only: {len(branch_um)}")
+        if cars_um:
+            extra.append(f"Cars+ not charged: {len(cars_um)}")
+        s1_miss = report.get("unmatched_statement_stage1", [])
+        s1_genuine = [r for r in s1_miss if not r.get("is_credit")]
+        if s1_genuine:
+            extra.append(f"Stage 1 stmt missing (incl. NONREV check): {len(s1_genuine)}")
+        if extra:
             self.summary_label.setText(
-                self.summary_label.text()
-                + f"\n\n(Branch-only rows: {len(branch_um)} — see PDF export for full list)"
+                self.summary_label.text() + "\n\n" + " | ".join(extra) + " (see PDF)"
             )
         self.table.resizeColumnsToContents()
 

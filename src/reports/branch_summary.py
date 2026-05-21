@@ -2,50 +2,47 @@ from typing import Any
 
 
 def format_branch_summary_text(report: dict[str, Any]) -> str:
-    """Format comparison summary like docs/refer_value.md."""
     branch = report.get("branch", "Unknown")
     s = report.get("summary", {})
+    s1 = s.get("stage1", {})
+    s2 = s.get("stage2", {})
+
     lines = [
         f"### {branch} — Fuel litres comparison",
         "",
-        "### Summary",
+        "### Stage 1 — Branch tab incl. NONREV vs fuel statement",
         "",
-        f"* **Total fill-ups on fuel statement:** **{s.get('statement_total', 0)}**",
-        f"* **Matched against {branch} branch tab:** **{s.get('matched_count', 0)}**",
-        f"* **Potentially missing / unmatched:** "
-        f"**{s.get('statement_unmatched_count', 0)} statement entries**",
+        f"* **Statement fill-ups:** **{s1.get('statement_total', 0)}**",
+        f"* **Matched (incl. NONREV rows):** **{s1.get('matched_count', 0)}**",
+        f"* **Genuine missing on WHN tab:** **{s1.get('genuine_missing_count', 0)}**",
+        "",
+        "### Stage 2 — Operational (excl. NONREV) vs fuel statement",
+        "",
+        f"* **Statement fill-ups:** **{s2.get('statement_total', 0)}**",
+        f"* **Matched:** **{s2.get('matched_count', 0)}**",
+        f"* **Genuine missing on WHN tab:** **{s2.get('genuine_missing_count', 0)}**",
+        f"* **Credit reversals (listed separately):** **{s.get('credit_reversal_count', 0)}**",
         "",
     ]
-    if s.get("genuine_missing_count", 0) or s.get("credit_reversal_count", 0):
-        lines.extend(
-            [
-                "Operationally:",
-                "",
-                f"* **{s.get('statement_total', 0)}** supplier fills",
-                f"* **{s.get('matched_count', 0)}** matched",
-                f"* **{s.get('genuine_missing_count', 0)}** likely genuine missing branch records",
-                f"* **{s.get('credit_reversal_count', 0)}** credit reversals",
-                "",
-            ]
-        )
-    if s.get("branch_unmatched_count", 0):
+    if s.get("nonrev_row_count"):
         lines.append(
-            f"* **{s.get('branch_unmatched_count', 0)}** entries on branch tab "
-            "without a matching statement line"
+            f"* **{s['nonrev_row_count']}** NONREV rows on branch tab "
+            "(included in Stage 1 only)"
         )
         lines.append("")
-    nonrev = report.get("nonrev_skipped_branch", 0)
-    if nonrev:
-        lines.append(f"* **{nonrev}** NONREV rows on branch tab excluded from matching")
+    if s.get("cars_plus_unbilled"):
+        lines.append(
+            f"* **{s['cars_plus_unbilled']}** branch tab rows with RA "
+            "**not charged on Cars+** (same date)"
+        )
         lines.append("")
     lines.extend(
         [
             "**How this report works:**",
             "",
-            "* Compares **branch litres tab** vs **fuel card statement** (litres only).",
-            "* **NONREV** rows on the branch tab are excluded (not fuel fills).",
-            "* **Credit/reversal** lines on the statement are listed but not counted as missing fuel.",
-            "* **Cars+** is shown for reference only — billing in dollars is **not** used to decide missing litres.",
+            "* **Stage 1** — All branch tab litres including NONREV (matches card statement).",
+            "* **Stage 2** — Operational rows only; NONREV excluded from missing-litre checks.",
+            "* **Cars+** — Checks branch RA numbers against Cars+ fuel charges (customer billing).",
             "",
         ]
     )

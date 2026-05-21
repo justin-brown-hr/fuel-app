@@ -112,12 +112,20 @@ class Database:
                 CREATE TABLE IF NOT EXISTS branch_summaries (
                     batch_id INTEGER NOT NULL,
                     branch TEXT NOT NULL,
-                    statement_total INTEGER NOT NULL,
-                    matched_count INTEGER NOT NULL,
-                    statement_unmatched_count INTEGER NOT NULL,
-                    branch_unmatched_count INTEGER NOT NULL,
-                    credit_reversal_count INTEGER NOT NULL,
-                    genuine_missing_count INTEGER NOT NULL,
+                    statement_total INTEGER NOT NULL DEFAULT 0,
+                    matched_count INTEGER NOT NULL DEFAULT 0,
+                    statement_unmatched_count INTEGER NOT NULL DEFAULT 0,
+                    branch_unmatched_count INTEGER NOT NULL DEFAULT 0,
+                    credit_reversal_count INTEGER NOT NULL DEFAULT 0,
+                    genuine_missing_count INTEGER NOT NULL DEFAULT 0,
+                    stage1_matched INTEGER DEFAULT 0,
+                    stage1_statement_total INTEGER DEFAULT 0,
+                    stage1_genuine_missing INTEGER DEFAULT 0,
+                    stage2_matched INTEGER DEFAULT 0,
+                    stage2_statement_total INTEGER DEFAULT 0,
+                    stage2_genuine_missing INTEGER DEFAULT 0,
+                    cars_plus_unbilled INTEGER DEFAULT 0,
+                    nonrev_row_count INTEGER DEFAULT 0,
                     PRIMARY KEY (batch_id, branch)
                 );
                 """
@@ -148,6 +156,34 @@ class Database:
             conn.execute(
                 "ALTER TABLE unmatched ADD COLUMN is_credit INTEGER DEFAULT 0"
             )
+        if "stage" not in um_cols:
+            conn.execute(
+                "ALTER TABLE unmatched ADD COLUMN stage TEXT DEFAULT 'stage2'"
+            )
+        if "is_nonrev" not in um_cols:
+            conn.execute(
+                "ALTER TABLE unmatched ADD COLUMN is_nonrev INTEGER DEFAULT 0"
+            )
+        bl_cols = {r[1] for r in conn.execute("PRAGMA table_info(branch_litres)").fetchall()}
+        if "is_nonrev" not in bl_cols:
+            conn.execute(
+                "ALTER TABLE branch_litres ADD COLUMN is_nonrev INTEGER DEFAULT 0"
+            )
+        bs_cols = {r[1] for r in conn.execute("PRAGMA table_info(branch_summaries)").fetchall()}
+        for col in (
+            "stage1_matched",
+            "stage1_statement_total",
+            "stage1_genuine_missing",
+            "stage2_matched",
+            "stage2_statement_total",
+            "stage2_genuine_missing",
+            "cars_plus_unbilled",
+            "nonrev_row_count",
+        ):
+            if col not in bs_cols:
+                conn.execute(
+                    f"ALTER TABLE branch_summaries ADD COLUMN {col} INTEGER DEFAULT 0"
+                )
 
     def update_batch_credits(
         self, batch_id: int, credits_branch: int, credits_statement: int
@@ -224,30 +260,44 @@ class Database:
                 INSERT OR REPLACE INTO branch_summaries
                 (batch_id, branch, statement_total, matched_count,
                  statement_unmatched_count, branch_unmatched_count,
-                 credit_reversal_count, genuine_missing_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 credit_reversal_count, genuine_missing_count,
+                 stage1_matched, stage1_statement_total, stage1_genuine_missing,
+                 stage2_matched, stage2_statement_total, stage2_genuine_missing,
+                 cars_plus_unbilled, nonrev_row_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
                         batch_id,
                         s.branch,
-                        s.statement_total,
-                        s.matched_count,
-                        s.statement_unmatched_count,
-                        s.branch_unmatched_count,
-                        s.credit_reversal_count,
-                        s.genuine_missing_count,
+                        s.stage2.statement_total,
+                        s.stage2.matched_count,
+                        s.stage2.statement_unmatched_count,
+                        s.stage2.branch_unmatched_count,
+                        s.stage2.credit_reversal_count,
+                        s.stage2.genuine_missing_count,
+                        s.stage1.matched_count,
+                        s.stage1.statement_total,
+                        s.stage1.genuine_missing_count,
+                        s.stage2.matched_count,
+                        s.stage2.statement_total,
+                        s.stage2.genuine_missing_count,
+                        s.cars_plus_unbilled,
+                        s.nonrev_row_count,
                     )
                     for s in summaries.values()
                 ],
             )
 
-    def get_branch_summary(self, batch_id: int, branch: str) -> dict[str, int] | None:
+    def get_branch_summary(self, batch_id: int, branch: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
                 """
                 SELECT statement_total, matched_count, statement_unmatched_count,
-                       branch_unmatched_count, credit_reversal_count, genuine_missing_count
+                       branch_unmatched_count, credit_reversal_count, genuine_missing_count,
+                       stage1_matched, stage1_statement_total, stage1_genuine_missing,
+                       stage2_matched, stage2_statement_total, stage2_genuine_missing,
+                       cars_plus_unbilled, nonrev_row_count
                 FROM branch_summaries WHERE batch_id = ? AND branch = ?
                 """,
                 (batch_id, branch),
@@ -261,6 +311,18 @@ class Database:
             "branch_unmatched_count": row[3],
             "credit_reversal_count": row[4],
             "genuine_missing_count": row[5],
+            "stage1": {
+                "matched_count": row[6],
+                "statement_total": row[7],
+                "genuine_missing_count": row[8],
+            },
+            "stage2": {
+                "matched_count": row[9],
+                "statement_total": row[10],
+                "genuine_missing_count": row[11],
+            },
+            "cars_plus_unbilled": row[12],
+            "nonrev_row_count": row[13],
         }
 
     def save_branch_litres(self, batch_id: int, rows: list[BranchLitresRow]) -> None:
@@ -269,8 +331,8 @@ class Database:
                 """
                 INSERT INTO branch_litres
                 (batch_id, branch, vehicle_label, ra_number, transaction_date,
-                 litres, time, amount)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 litres, time, amount, is_nonrev)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -282,6 +344,7 @@ class Database:
                         r.litres,
                         r.time,
                         r.amount,
+                        1 if r.is_nonrev else 0,
                     )
                     for r in rows
                 ],
@@ -345,8 +408,9 @@ class Database:
                 """
                 INSERT INTO unmatched
                 (batch_id, branch, ra_number, vehicle_label, transaction_date,
-                 litres, time, reason, source, supplier, fuel_type, is_credit)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 litres, time, reason, source, supplier, fuel_type, is_credit,
+                 stage, is_nonrev)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -362,6 +426,8 @@ class Database:
                         r.supplier,
                         r.fuel_type,
                         1 if r.is_credit else 0,
+                        r.stage,
+                        1 if r.is_nonrev else 0,
                     )
                     for r in rows
                 ],
@@ -412,16 +478,14 @@ class Database:
             unmatched = conn.execute(
                 """
                 SELECT ra_number, vehicle_label, transaction_date, litres, time,
-                       reason, source, supplier, fuel_type, is_credit
+                       reason, source, supplier, fuel_type, is_credit, stage, is_nonrev
                 FROM unmatched WHERE batch_id = ? AND branch = ?
-                ORDER BY transaction_date
+                ORDER BY stage, transaction_date
                 """,
                 (batch_id, branch),
             ).fetchall()
 
-        credits_branch = sum(
-            1 for r in litres if is_credit_litres(r["litres"])
-        )
+        credits_branch = sum(1 for r in litres if is_credit_litres(r["litres"]))
         credits_statement = sum(
             1
             for r in statement
@@ -433,16 +497,20 @@ class Database:
         )
 
         um_list = [dict(r) for r in unmatched]
-        stmt_um = [u for u in um_list if u.get("source") == "fuel_statement"]
-        branch_um = [u for u in um_list if u.get("source") == "branch_sheet"]
-        summary = self.get_branch_summary(batch_id, branch) or {
-            "statement_total": len(statement),
-            "matched_count": max(0, len(statement) - len(stmt_um)),
-            "statement_unmatched_count": len(stmt_um),
-            "branch_unmatched_count": len(branch_um),
-            "credit_reversal_count": sum(1 for u in stmt_um if u.get("is_credit")),
-            "genuine_missing_count": sum(1 for u in stmt_um if not u.get("is_credit")),
-        }
+
+        def _filter(stage: str, source: str) -> list[dict]:
+            return [
+                u
+                for u in um_list
+                if u.get("stage") == stage and u.get("source") == source
+            ]
+
+        stmt_s1 = _filter("stage1", "fuel_statement")
+        stmt_s2 = _filter("stage2", "fuel_statement")
+        branch_s2 = _filter("stage2", "branch_sheet")
+        cars_um = _filter("cars_plus", "cars_plus")
+
+        summary = self.get_branch_summary(batch_id, branch) or {}
 
         return {
             "branch": branch,
@@ -450,14 +518,13 @@ class Database:
             "billed": [dict(r) for r in billed],
             "statement": [dict(r) for r in statement],
             "unmatched": um_list,
-            "unmatched_statement": stmt_um,
-            "unmatched_branch": branch_um,
+            "unmatched_statement_stage1": stmt_s1,
+            "unmatched_statement_stage2": stmt_s2,
+            "unmatched_statement": stmt_s2,
+            "unmatched_branch": branch_s2,
+            "unmatched_cars_plus": cars_um,
             "credits_skipped_branch": credits_branch,
             "credits_skipped_statement": credits_statement,
-            "nonrev_skipped_branch": sum(
-                1
-                for r in litres
-                if "NONREV" in (r["ra_number"] or "").upper()
-            ),
+            "nonrev_skipped_branch": summary.get("nonrev_row_count", 0),
             "summary": summary,
         }
