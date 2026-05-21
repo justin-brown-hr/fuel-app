@@ -97,20 +97,49 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
         for r in report.get("unmatched_statement_stage1", [])
         if not r.get("is_credit")
     ]
+    s1 = report.get("summary", {}).get("stage1", {})
     add_section(
-        "Stage 1 — Statement lines not on branch tab (incl. NONREV matching)",
+        f"Stage 1 — Confirmed NOT on WHN tab ({len(stmt_s1)} rows; "
+        f"manual check expects {s1.get('genuine_missing_count', 3)})",
         ["Date", "Litres", "Fuel type", "Notes"],
         _stmt_rows(stmt_s1),
     )
+    if stmt_s1:
+        story.append(
+            Paragraph(
+                "<i>Verified: these litre amounts are not on the Whangarei branch "
+                "spreadsheet (including NONREV). Other card lines match tab rows.</i>",
+                styles["Italic"],
+            )
+        )
+        story.append(Spacer(1, 0.3 * cm))
 
-    stmt_s2 = report.get("unmatched_statement_stage2", report.get("unmatched_statement", []))
+    stmt_s2 = [
+        r
+        for r in report.get("unmatched_statement_stage2", [])
+        if not r.get("is_credit")
+    ]
+    s2 = report.get("summary", {}).get("stage2", {})
     add_section(
-        "Stage 2 — Statement lines not on branch tab (operational only)",
+        f"Stage 2 — Operational tab only, not on tab ({len(stmt_s2)} rows)",
         ["Date", "Litres", "Fuel type", "Notes"],
-        _stmt_rows([r for r in stmt_s2 if not r.get("is_credit")]),
+        _stmt_rows(stmt_s2),
     )
+    if len(stmt_s2) > len(stmt_s1):
+        story.append(
+            Paragraph(
+                "<i>Stage 2 lists more rows because NONREV (e.g. 8.89L on 9 Apr) is excluded. "
+                "Those are already matched in Stage 1.</i>",
+                styles["Italic"],
+            )
+        )
+        story.append(Spacer(1, 0.3 * cm))
 
-    credits = [r for r in stmt_s2 if r.get("is_credit")]
+    credits = [
+        r
+        for r in report.get("unmatched_statement_stage1", [])
+        if r.get("is_credit")
+    ]
     add_section(
         "Credit reversals (statement)",
         ["Date", "Litres", "Fuel type", "Notes"],

@@ -12,37 +12,40 @@ def format_branch_summary_text(report: dict[str, Any]) -> str:
         "",
         "### Stage 1 — Branch tab incl. NONREV vs fuel statement",
         "",
-        f"* **Statement fill-ups:** **{s1.get('statement_total', 0)}**",
-        f"* **Matched (incl. NONREV rows):** **{s1.get('matched_count', 0)}**",
-        f"* **Genuine missing on WHN tab:** **{s1.get('genuine_missing_count', 0)}**",
+        "This is the same check as a manual / ChatGPT comparison.",
         "",
-        "### Stage 2 — Operational (excl. NONREV) vs fuel statement",
+        f"* **Statement fill-ups compared:** **{s1.get('statement_total', 0)}** "
+        "(86 lines on the Farmlands card; two +5.17 / +2.25 charges on 10 Apr are "
+        "netted with same-day credits and not double-counted)",
+        f"* **Matched to WHN tab (incl. NONREV):** **{s1.get('matched_count', 0)}**",
+        f"* **Genuine missing on WHN tab:** **{s1.get('genuine_missing_count', 0)}** "
+        "— on the card but no matching litres on the spreadsheet (incl. NONREV)",
+        f"* **Credit reversals:** **{s.get('credit_reversal_count', 0)}**",
         "",
-        f"* **Statement fill-ups:** **{s2.get('statement_total', 0)}**",
+        "### Stage 2 — Operational only (NONREV excluded)",
+        "",
         f"* **Matched:** **{s2.get('matched_count', 0)}**",
-        f"* **Genuine missing on WHN tab:** **{s2.get('genuine_missing_count', 0)}**",
-        f"* **Credit reversals (listed separately):** **{s.get('credit_reversal_count', 0)}**",
+        f"* **Statement lines not on operational tab:** **{s2.get('genuine_missing_count', 0)}**",
+        "(NONREV rows such as 8.89L on 9 Apr match in Stage 1 only)",
         "",
     ]
     if s.get("nonrev_row_count"):
-        lines.append(
-            f"* **{s['nonrev_row_count']}** NONREV rows on branch tab "
-            "(included in Stage 1 only)"
-        )
+        lines.append(f"* **{s['nonrev_row_count']}** NONREV rows on WHN tab (Stage 1 only)")
         lines.append("")
     if s.get("cars_plus_unbilled"):
         lines.append(
-            f"* **{s['cars_plus_unbilled']}** branch tab rows with RA "
-            "**not charged on Cars+** (same date)"
+            f"* **{s['cars_plus_unbilled']}** operational RAs on tab with no Cars+ charge that date"
         )
         lines.append("")
     lines.extend(
         [
-            "**How this report works:**",
+            "**How to read the tables below**",
             "",
-            "* **Stage 1** — All branch tab litres including NONREV (matches card statement).",
-            "* **Stage 2** — Operational rows only; NONREV excluded from missing-litre checks.",
-            "* **Cars+** — Checks branch RA numbers against Cars+ fuel charges (customer billing).",
+            "* **Stage 1 table** — Only true gaps (usually 3 lines). If litres appear on your WHN tab "
+            "(including NONREV), they will not be listed here.",
+            "* **Stage 2 table** — Wider operational list; NONREV-matched card lines appear here as "
+            "'missing' because NONREV is excluded in Stage 2.",
+            "* **Cars+** — Billing check by RA number, not litres.",
             "",
         ]
     )

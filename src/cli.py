@@ -89,6 +89,18 @@ def run_cli(argv: list[str] | None = None) -> int:
     report = db.get_branch_report(result.batch_id, branch)
     print("\n" + format_branch_summary_text(report))
 
+    stmt_s1 = [
+        r for r in report.get("unmatched_statement_stage1", [])
+        if not r.get("is_credit")
+    ]
+    if stmt_s1:
+        print("\nStage 1 — Confirmed NOT on WHN tab (incl. NONREV):")
+        print(f"{'Date':<12} {'Litres':>8}  {'Fuel':<8}  Notes")
+        for r in stmt_s1:
+            print(
+                f"{r['transaction_date']:<12} {r['litres']:>7.2f}L  "
+                f"{(r.get('fuel_type') or ''):<8}  {r.get('reason', '')}"
+            )
     stmt_s2 = [
         r for r in report.get("unmatched_statement_stage2", [])
         if not r.get("is_credit")

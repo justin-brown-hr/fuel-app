@@ -73,6 +73,42 @@ def count_nonrev(branch_rows: list[BranchLitresRow]) -> int:
     return sum(1 for r in branch_rows if is_branch_nonrev(r))
 
 
+def _credit_offset_keys(stmt_branch: list[FuelStatementRow]) -> set[tuple]:
+    keys: set[tuple] = set()
+    for r in stmt_branch:
+        if r.litres < 0:
+            keys.add(
+                (
+                    r.branch,
+                    r.transaction_date.isoformat(),
+                    round(abs(r.litres), 2),
+                    normalize_fuel_type(r.product),
+                )
+            )
+    return keys
+
+
+def _strip_charge_before_reversal(
+    rows: list[FuelStatementRow], stmt_branch: list[FuelStatementRow]
+) -> list[FuelStatementRow]:
+    """Remove same-day positive charge lines that pair with a credit reversal (refer manual count)."""
+    offsets = _credit_offset_keys(stmt_branch)
+    return [
+        r
+        for r in rows
+        if not (
+            r.litres > 0
+            and (
+                r.branch,
+                r.transaction_date.isoformat(),
+                round(r.litres, 2),
+                normalize_fuel_type(r.product),
+            )
+            in offsets
+        )
+    ]
+
+
 def _has_same_day_credit_twin(row: FuelStatementRow, stmt_branch: list[FuelStatementRow]) -> bool:
     if row.litres <= 0:
         return False
@@ -182,7 +218,11 @@ def _reconcile_branch_stage(
 ) -> tuple[list[UnmatchedLitres], StageSummary]:
     stmt_branch = [r for r in statement_rows if r.branch == branch]
     stmt_credits = [r for r in stmt_branch if is_statement_credit(r)]
-    stmt_active = [r for r in stmt_branch if not is_statement_credit(r)]
+    stmt_positive = [r for r in stmt_branch if not is_statement_credit(r)]
+    if include_nonrev:
+        stmt_active = _strip_charge_before_reversal(stmt_positive, stmt_branch)
+    else:
+        stmt_active = stmt_positive
     branch_items = _branch_items_for_stage(branch_rows, branch, include_nonrev)
 
     um_branch, um_stmt, matched = _match_branch_pool(branch_items, stmt_active)
@@ -220,7 +260,11 @@ def _reconcile_branch_stage(
                 transaction_date=row.transaction_date,
                 litres=row.litres,
                 time=row.time,
-                reason=f"Not found in {tab} tab [{stage_label}]",
+                reason=(
+                    f"No matching litres on {tab} tab (Stage 1 incl. NONREV)"
+                    if include_nonrev
+                    else f"No matching litres on {tab} tab (operational only)"
+                ),
                 source="fuel_statement",
                 supplier=row.supplier,
                 fuel_type=_fuel_type_label(row.product, row.litres),
