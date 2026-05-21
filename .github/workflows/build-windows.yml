@@ -25,17 +25,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-build.txt
 
-      - name: Build with PyInstaller
+      - name: Build single-file exe
         run: pyinstaller fuel_reconcile.spec --noconfirm --clean
 
-      - name: Add client docs
+      - name: Package for client
         run: |
-          copy docs\USER_GUIDE.md dist\FuelReconcile\README.txt
-          copy docs\WINDOWS_INSTALL.md dist\FuelReconcile\INSTALL.txt
+          mkdir dist\client_package
+          copy dist\FuelReconcile.exe dist\client_package\
+          copy build\windows\START_HERE.txt dist\client_package\
+          copy docs\WINDOWS_INSTALL.md dist\client_package\INSTALL.txt
+          powershell Compress-Archive -Path dist\client_package\* -DestinationPath dist\FuelReconcile-Client.zip -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FuelReconcile-Windows
-          path: dist/FuelReconcile/
+          name: FuelReconcile-Client-zip
+          path: |
+            dist/FuelReconcile.exe
+            dist/FuelReconcile-Client.zip
           retention-days: 90

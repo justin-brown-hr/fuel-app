@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 cd /d "%~dp0\..\.."
 
-echo === Fuel Reconcile - Windows build ===
+echo === Fuel Reconcile - Windows build (single .exe) ===
 echo Project: %CD%
 
 where python >nul 2>&1
@@ -23,22 +23,25 @@ echo Installing dependencies...
 python -m pip install --upgrade pip
 pip install -r requirements.txt -r requirements-build.txt
 
-echo Running PyInstaller...
+echo Running PyInstaller (one-file .exe, may take several minutes)...
 pyinstaller fuel_reconcile.spec --noconfirm --clean
 if errorlevel 1 exit /b 1
 
-set DIST=%CD%\dist\FuelReconcile
-if not exist "%DIST%\FuelReconcile.exe" (
-    echo ERROR: Build failed - FuelReconcile.exe not found.
+set EXE=%CD%\dist\FuelReconcile.exe
+if not exist "%EXE%" (
+    echo ERROR: Build failed - dist\FuelReconcile.exe not found.
     exit /b 1
 )
 
-copy /Y "docs\USER_GUIDE.md" "%DIST%\README.txt" >nul 2>&1
-copy /Y "docs\WINDOWS_INSTALL.md" "%DIST%\INSTALL.txt" >nul 2>&1
+for %%A in ("%EXE%") do echo Built: %%~fA  (%%~zA bytes)
+
 echo.
 echo === Build complete ===
-echo Run:  "%DIST%\FuelReconcile.exe"
-echo Zip the whole folder "dist\FuelReconcile" and send to the client.
-echo Database is stored in: %%LOCALAPPDATA%%\FuelReconcile\fuel_app.db
+echo Client needs ONLY:  dist\FuelReconcile.exe
+echo.
+echo Next:  build\windows\package-for-client.bat  (makes zip for email)
+echo.
+echo Tell client: extract zip, put exe on Desktop, double-click.
+echo First launch is slow (~30 sec). Data: %%LOCALAPPDATA%%\FuelReconcile\
 echo.
 pause

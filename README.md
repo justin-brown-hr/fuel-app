@@ -62,22 +62,23 @@ Or with sample files from `docs/`:
 ### Option A — double-click build script
 
 1. Install [Python 3.10+](https://www.python.org/downloads/) and tick **Add python.exe to PATH**.
-2. Open `build\windows\build.bat` (or run `build.ps1` in PowerShell).
-3. When finished, zip the folder `dist\FuelReconcile` and send it to the client.
+2. Run `build\windows\build.bat` (creates **one** `dist\FuelReconcile.exe`).
+3. Run `build\windows\package-for-client.bat` → sends `FuelReconcile-Client.zip`.
 
-The client runs **FuelReconcile.exe** inside that folder. See `docs/WINDOWS_INSTALL.md`.
+**Client needs only `FuelReconcile.exe`** after extracting the zip (not the old folder with `_internal`). First launch may take ~30 seconds.
 
 ### Option B — manual commands
 
 ```bat
-cd fuel_app
-python -m venv .venv
-.venv\Scripts\activate
 pip install -r requirements.txt -r requirements-build.txt
 pyinstaller fuel_reconcile.spec --noconfirm --clean
 ```
 
-Output: `dist\FuelReconcile\FuelReconcile.exe`
+Output: `dist\FuelReconcile.exe` (single file, ~150–350 MB)
+
+### Client cannot run? (`python311.dll` error)
+
+They ran the `.exe` **from inside RAR/ZIP** without saving it. Fix: **Extract All** → put `FuelReconcile.exe` on Desktop → run again. See `docs/WINDOWS_INSTALL.md`.
 
 ### GitHub Actions
 

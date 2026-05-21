@@ -1,51 +1,39 @@
-# Fuel Reconcile — Windows install (for client)
+# Fuel Reconcile — Windows (one file)
 
-## What you receive
+## What the client gets
 
-A folder named **FuelReconcile** containing:
+**One program:** `FuelReconcile.exe` (inside `FuelReconcile-Client.zip`)
 
-- **FuelReconcile.exe** — double-click to open the app
-- Other files — required by the app; **keep them in the same folder**
-- **README.txt** — short usage guide
+No `_internal` folder. No extra DLLs to copy.
 
-Do not move only the `.exe` file; the whole folder must stay together.
+## How to run
 
-## First run
+1. **Extract** the ZIP (if you received a zip).
+2. Put **`FuelReconcile.exe`** on Desktop or Documents.
+3. **Do not** run it from inside WinRAR/7-Zip (causes `python311.dll` errors).
+4. Double-click **`FuelReconcile.exe`**.
+5. First start can take **20–40 seconds** — wait for the window.
 
-1. Unzip the folder (e.g. to `Desktop\FuelReconcile`).
-2. Double-click **FuelReconcile.exe**.
-3. If Windows SmartScreen appears: click **More info** → **Run anyway** (the app is not signed with a commercial certificate).
+## If Windows blocks it
 
-## Monthly workflow
+SmartScreen: **More info** → **Run anyway**
 
-1. Open **Fuel Reconcile**.
-2. Drag your three files onto the window:
-   - Farmlands (or Mobil) fuel statement **PDF**
-   - **Branch litres** Excel workbook
-   - **Cars+** statement Excel (optional but recommended)
-3. Click **Import & reconcile**.
-4. Choose the **branch** (e.g. Whangarei).
-5. Review the action items in the table.
-6. Click **Export PDF** and save the report.
+## If `python311.dll` / module not found
 
-## Where data is stored
+- Save/extract the `.exe` first, then run from Desktop.
+- Install [Visual C++ Redistributable x64](https://aka.ms/v1/vc/Redist.x64)
 
-Import history is saved on this PC at:
+## Data saved on this PC
 
 `%LOCALAPPDATA%\FuelReconcile\fuel_app.db`
 
-(Usually: `C:\Users\<YourName>\AppData\Local\FuelReconcile\`)
+## For the developer (build)
 
-Re-importing creates a new batch; older imports remain in the dropdown.
+```bat
+build\windows\build.bat
+build\windows\package-for-client.bat
+```
 
-## Files needed each month
+Send `dist\FuelReconcile-Client.zip` or the `.exe` alone (after telling client to extract if zipped).
 
-| File | Example name |
-|------|----------------|
-| Fuel statement | `Farmlands Statement April.PDF` |
-| Branch litres | `branch litres.xlsx` |
-| Cars+ | `cars+ statement.xlsx` |
-
-## Support
-
-Contact your developer to add branches, fix statement formats, or rebuild the app.
+The `.exe` is large (~150–350 MB) because it includes Python and Qt — that is normal.

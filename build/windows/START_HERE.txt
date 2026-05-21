@@ -1,0 +1,30 @@
+================================================================================
+  FUEL RECONCILE - ONE FILE INSTALL
+================================================================================
+
+You only need:  FuelReconcile.exe
+
+--------------------------------------------------------------------------------
+HOW TO RUN
+--------------------------------------------------------------------------------
+
+1. If you received a ZIP, right-click it -> Extract All.
+
+2. Move FuelReconcile.exe to a normal place (Desktop or Documents).
+   Do NOT double-click it while it is still inside WinRAR or a ZIP preview.
+
+3. Double-click FuelReconcile.exe.
+
+First start may take 20-40 seconds (Windows unpacks the app once).
+
+--------------------------------------------------------------------------------
+IF YOU SEE "python311.dll" OR "could not be found"
+--------------------------------------------------------------------------------
+
+You opened the .exe from inside a RAR/ZIP without saving it first.
+Extract or Save As, then run the copy on Desktop.
+
+If it still fails after that, install (free, 64-bit):
+https://aka.ms/v1/vc/Redist.x64
+
+================================================================================
