@@ -29,10 +29,21 @@ SmartScreen: **More info** → **Run anyway**
 
 ## For the developer (build)
 
+**On a Windows PC** (recommended):
+
 ```bat
 build\windows\build.bat
 build\windows\package-for-client.bat
 ```
+
+**On Linux/macOS with Docker** (Wine cross-build):
+
+```bash
+./build/windows/build-via-docker.sh
+./build/windows/package-for-client.sh
+```
+
+**Via GitHub** (no local Windows): push to `main`, open Actions → **Build Windows app** → download **FuelReconcile-Client-zip**.
 
 Send `dist\FuelReconcile-Client.zip` or the `.exe` alone (after telling client to extract if zipped).
 

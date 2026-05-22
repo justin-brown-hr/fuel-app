@@ -116,9 +116,8 @@ def cars_loc_label(branch: str) -> str:
 def cars_loc_help_text(branch: str) -> str:
     if branch == "Whangarei":
         return (
-            "Whangarei on Cars+: WHN50, WHN60, WZZ52. "
-            "WNU50/WNU60 is Whanganui (different location) and is not used for this "
-            "Whangarei check."
+            "Whangarei on Cars+: WHN50/60 or WZZ52 on RA Loc Out or RA Loc In "
+            "(return location). WNU = Whanganui — not counted for Whangarei."
         )
     if branch == "Whanganui":
         return (
@@ -129,13 +128,27 @@ def cars_loc_help_text(branch: str) -> str:
     return f"Cars+ RA Loc Out must start with: {prefixes} for this branch."
 
 
-def cars_row_at_branch_location(ra_loc_out: str, branch: str) -> bool:
-    loc = (ra_loc_out or "").strip().upper()
+def _loc_matches_branch(loc: str, branch: str) -> bool:
+    loc = (loc or "").strip().upper()
     if not loc:
         return False
     return any(loc.startswith(p) for p in cars_loc_prefixes(branch))
 
 
+def cars_row_at_branch_location(
+    ra_loc_out: str, branch: str, ra_loc_in: str = ""
+) -> bool:
+    """
+    Cars+ fuel is often billed at return (RA Loc In = WHN60) while Loc Out is
+    another depot (e.g. AUC50). Match either column for branch billing checks.
+    """
+    return _loc_matches_branch(ra_loc_out, branch) or _loc_matches_branch(ra_loc_in, branch)
+
+
 def filter_cars_for_branch(rows: list, branch: str) -> list:
-    """Keep only Cars+ charges at this branch's RA Loc Out codes."""
-    return [r for r in rows if cars_row_at_branch_location(r.ra_loc_out, branch)]
+    """Keep Cars+ charges where Out or In location matches this branch."""
+    return [
+        r
+        for r in rows
+        if cars_row_at_branch_location(r.ra_loc_out, branch, r.ra_loc_in)
+    ]

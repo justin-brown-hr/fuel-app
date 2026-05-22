@@ -460,11 +460,12 @@ class Database:
             ).fetchall()
             billed = conn.execute(
                 """
-                SELECT ra_number, ra_loc_out, transaction_date, time, fuel_charge, fuel_type
-                FROM cars_plus WHERE batch_id = ? AND branch = ?
+                SELECT ra_number, ra_loc_out, ra_loc_in, transaction_date, time,
+                       fuel_charge, fuel_type
+                FROM cars_plus WHERE batch_id = ?
                 ORDER BY transaction_date, ra_number
                 """,
-                (batch_id, branch),
+                (batch_id,),
             ).fetchall()
             statement = conn.execute(
                 """
@@ -489,8 +490,8 @@ class Database:
                 (batch_id,),
             ).fetchone()[0]
             cars_branch_rows = conn.execute(
-                "SELECT ra_loc_out FROM cars_plus WHERE batch_id = ? AND branch = ?",
-                (batch_id, branch),
+                "SELECT ra_loc_out, ra_loc_in FROM cars_plus WHERE batch_id = ?",
+                (batch_id,),
             ).fetchall()
 
         credits_branch = sum(1 for r in litres if is_credit_litres(r["litres"]))
@@ -523,13 +524,17 @@ class Database:
         cars_at_branch_loc = sum(
             1
             for r in cars_branch_rows
-            if cars_row_at_branch_location(r["ra_loc_out"] or "", branch)
+            if cars_row_at_branch_location(
+                r["ra_loc_out"] or "", branch, r["ra_loc_in"] or ""
+            )
         )
 
         billed_at_branch = [
             dict(r)
             for r in billed
-            if cars_row_at_branch_location(r["ra_loc_out"] or "", branch)
+            if cars_row_at_branch_location(
+                r["ra_loc_out"] or "", branch, r["ra_loc_in"] or ""
+            )
         ]
 
         return {

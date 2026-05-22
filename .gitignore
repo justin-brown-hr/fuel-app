@@ -3,5 +3,12 @@ __pycache__/
 *.pyc
 data/
 *.db
+
+# PyInstaller cache/output (never commit — GitHub limit 100 MB per file)
 dist/
-# keep fuel_reconcile.spec in repo; ignore PyInstaller cache only
+build/fuel_reconcile/
+*.pkg
+
+# Generated reports
+*_report.pdf
+whangarei_report.pdf
