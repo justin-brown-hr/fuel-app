@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -279,7 +280,12 @@ class MainWindow(QMainWindow):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.verticalHeader().setVisible(False)
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setDefaultSectionSize(40)
+        hdr = self.table.horizontalHeader()
+        hdr.setStretchLastSection(False)
+        hdr.setSectionResizeMode(4, QHeaderView.Stretch)
+        hdr.setSectionResizeMode(5, QHeaderView.Fixed)
+        self.table.setColumnWidth(5, 96)
         self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -418,6 +424,30 @@ class MainWindow(QMainWindow):
             if branches:
                 self._load_branch_table()
 
+    def _make_accept_cell(
+        self, item_key: str, branch: str, batch_id: int
+    ) -> QWidget:
+        """Center Accept button inside the table cell."""
+        cell = QWidget()
+        cell.setAutoFillBackground(False)
+        cell.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout = QHBoxLayout(cell)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setAlignment(Qt.AlignCenter)
+        btn = QPushButton("Accept")
+        btn.setObjectName("AcceptButton")
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setFixedHeight(28)
+        btn.setMinimumWidth(72)
+        btn.setMaximumWidth(88)
+        btn.clicked.connect(
+            lambda checked=False, k=item_key, b=branch, bid=batch_id: self._accept_item(
+                bid, b, k
+            )
+        )
+        layout.addWidget(btn)
+        return cell
+
     def _load_branch_table(self) -> None:
         if not self.current_batch_id or not self.branch_combo.currentText():
             return
@@ -427,7 +457,8 @@ class MainWindow(QMainWindow):
         self.summary_label.setText(summary_to_html(format_attention_summary_text(report)))
 
         rows = attention_rows_for_table(report)
-        headers = ["Type", "Date", "Litres", "RA / fuel", "Action", ""]
+        headers = ["Type", "Date", "Litres", "RA / fuel", "Action", "Accept"]
+        self.table.clearContents()
         self.table.setColumnCount(len(headers))
         self.table.setHorizontalHeaderLabels(headers)
         self.table.setRowCount(len(rows))
@@ -461,24 +492,27 @@ class MainWindow(QMainWindow):
                 item = QTableWidgetItem(str(v))
                 if j == 0:
                     item.setForeground(Qt.darkBlue)
+                if j == 4:
+                    item.setTextAlignment(
+                        Qt.AlignLeft | Qt.AlignVCenter
+                    )
                 self.table.setItem(i, j, item)
 
-            accept_btn = QPushButton("Accept")
-            accept_btn.setObjectName("AcceptButton")
-            accept_btn.setCursor(Qt.PointingHandCursor)
-            item_key = r.get("item_key", "")
-            accept_btn.clicked.connect(
-                lambda checked=False, k=item_key, b=branch, bid=batch_id: self._accept_item(
-                    bid, b, k
-                )
+            self.table.setCellWidget(
+                i,
+                5,
+                self._make_accept_cell(r.get("item_key", ""), branch, batch_id),
             )
-            self.table.setCellWidget(i, 5, accept_btn)
 
-        self.table.resizeColumnsToContents()
-        if self.table.columnCount() > 4:
-            self.table.setColumnWidth(4, max(self.table.columnWidth(4), 220))
-        if self.table.columnCount() > 5:
-            self.table.setColumnWidth(5, 88)
+        hdr = self.table.horizontalHeader()
+        for col in range(4):
+            hdr.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(4, QHeaderView.Stretch)
+        hdr.setSectionResizeMode(5, QHeaderView.Fixed)
+        self.table.setColumnWidth(5, 96)
+        self.table.resizeRowsToContents()
+        for row in range(self.table.rowCount()):
+            self.table.setRowHeight(row, max(self.table.rowHeight(row), 40))
 
     def _accept_item(self, batch_id: int, branch: str, item_key: str) -> None:
         if not batch_id or not item_key:

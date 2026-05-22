@@ -155,8 +155,11 @@ QPushButton#AcceptButton {{
     background-color: {COLORS["surface"]};
     color: {COLORS["text"]};
     border: 1px solid {COLORS["border_strong"]};
-    padding: 4px 10px;
+    border-radius: 6px;
+    padding: 2px 8px;
     font-size: 12px;
+    min-height: 24px;
+    max-height: 28px;
 }}
 QPushButton#AcceptButton:hover {{
     background-color: {COLORS["accent_soft"]};
