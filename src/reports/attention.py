@@ -2,6 +2,9 @@
 
 from typing import Any
 
+from src.config import cars_loc_label
+from src.reports.cars_plus_note import cars_section_empty_note
+
 
 def _is_credit_row(row: dict) -> bool:
     if row.get("is_credit"):
@@ -48,68 +51,63 @@ def extract_attention_items(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def format_attention_summary_text(report: dict[str, Any]) -> str:
+def attention_summary_bullets(report: dict[str, Any]) -> list[str]:
+    """Summary bullet lines (HTML <b> for PDF; same counts as client report layout)."""
     branch = report.get("branch", "Unknown")
-    s = report.get("summary", {})
-    s1 = s.get("stage1", {})
+    s1 = report.get("summary", {}).get("stage1", {})
     att = extract_attention_items(report)
-
-    lines = [
-        f"### {branch} — Items needing attention",
-        "",
-        f"**{s1.get('matched_count', 0)}** of **{s1.get('statement_total', 0)}** "
-        "card fill-ups match the branch tab (incl. NONREV). "
-        "Tables below list only follow-ups.",
-        "",
-    ]
-
+    matched = s1.get("matched_count", 0)
+    total = s1.get("statement_total", 0)
     n_card = len(att["card_not_on_tab"])
     n_tab = len(att["tab_not_on_card"])
     n_cars = len(att["cars_not_charged"])
     n_cred = att["credit_reversal_count"]
+    loc = cars_loc_label(branch)
 
-    if n_card:
-        lines.append(
-            f"* **{n_card}** fuel card line(s) — on Farmlands, not on branch tab "
-            "(add to spreadsheet or investigate)"
-        )
-    if n_tab:
-        lines.append(
-            f"* **{n_tab}** branch tab row(s) — on branch sheet, no matching card line"
-        )
-    from src.config import cars_loc_label
-    from src.reports.cars_plus_note import cars_section_empty_note
+    bullets = [
+        (
+            f"<b>{matched}</b> of <b>{total}</b> card fill-ups match the branch tab "
+            f"(incl. NONREV). Tables below list only follow-ups."
+        ),
+        (
+            f"<b>{n_card}</b> fuel card line(s) — on Farmlands, not on branch tab "
+            f"(add to spreadsheet or investigate)"
+        ),
+        (
+            f"<b>{n_tab}</b> branch tab row(s) — on branch sheet, no matching card line"
+        ),
+        (
+            f"<b>{n_cars}</b> operational fill(s) — not billed on Cars+ at "
+            f"<b>{loc}</b> (same date &amp; RA)"
+        ),
+        (
+            f"<b>{n_cred}</b> credit reversal(s) on statement "
+            f"(informational — no action)"
+        ),
+    ]
 
     cars_total = report.get("cars_plus_imported_total", 0)
-    cars_at_loc = report.get("cars_plus_at_branch_loc", 0)
-    if n_cars:
-        lines.append(
-            f"* **{n_cars}** operational fill(s) — not billed on Cars+ at "
-            f"**{cars_loc_label(branch)}** (same date & RA)"
+    if cars_total == 0:
+        bullets[3] = (
+            "<b>Cars+</b> — file not loaded (re-import; copy spreadsheet off OneDrive "
+            "if locked)"
         )
-    elif cars_total == 0:
-        lines.append(
-            "* **Cars+** — file not loaded (re-import; copy xlsx off OneDrive if locked)"
-        )
-    elif cars_at_loc > 0:
-        lines.append(
-            f"* **Cars+** — **0** billing gaps ({cars_at_loc} {cars_loc_label(branch)} "
-            "charges loaded; all matched)"
-        )
-    else:
-        lines.append(
-            f"* **Cars+** — no {cars_loc_label(branch)} rows in export (check RA Loc Out)"
-        )
-    note = cars_section_empty_note(report)
-    if note and not n_cars:
-        lines.append(f"* _{note}_")
-    if n_cred:
-        lines.append(
-            f"* **{n_cred}** credit reversal(s) on statement (informational — no action)"
-        )
-    if att["total_action_items"] == 0:
-        lines.append("* No action items — reconciliation clean for this branch.")
+    elif n_cars == 0:
+        note = cars_section_empty_note(report)
+        if note:
+            bullets[3] = f"<b>0</b> Cars+ billing gaps — {note}"
 
+    return bullets
+
+
+def format_attention_summary_text(report: dict[str, Any]) -> str:
+    branch = report.get("branch", "Unknown")
+    lines = [f"### {branch} — Items needing attention", ""]
+    for b in attention_summary_bullets(report):
+        plain = b.replace("<b>", "**").replace("</b>", "**").replace("&amp;", "&")
+        lines.append(f"* {plain}")
+    if extract_attention_items(report)["total_action_items"] == 0:
+        lines.append("* No action items — reconciliation clean for this branch.")
     return "\n".join(lines)
 
 

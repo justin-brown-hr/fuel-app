@@ -3,14 +3,25 @@ from pathlib import Path
 from typing import Any
 
 from reportlab.lib import colors
+from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    HRFlowable,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 from src.config import cars_loc_help_text
 
-from .attention import extract_attention_items, format_attention_summary_text
+from .attention import (
+    attention_summary_bullets,
+    extract_attention_items,
+)
 from .cars_plus_note import cars_section_empty_note, cars_section_title
 
 
@@ -19,6 +30,95 @@ def _fmt_date(iso: str) -> str:
         return datetime.strptime(iso[:10], "%Y-%m-%d").strftime("%d %b %Y")
     except ValueError:
         return iso
+
+
+def _pdf_styles():
+    base = getSampleStyleSheet()
+    return {
+        "title": ParagraphStyle(
+            "PdfTitle",
+            parent=base["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=22,
+            leading=26,
+            textColor=colors.HexColor("#111111"),
+            spaceAfter=10,
+            alignment=TA_LEFT,
+        ),
+        "meta": ParagraphStyle(
+            "PdfMeta",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=11,
+            leading=15,
+            textColor=colors.HexColor("#333333"),
+            spaceAfter=3,
+        ),
+        "section": ParagraphStyle(
+            "PdfSection",
+            parent=base["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=13,
+            leading=17,
+            textColor=colors.HexColor("#111111"),
+            spaceBefore=4,
+            spaceAfter=10,
+        ),
+        "bullet": ParagraphStyle(
+            "PdfBullet",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=10.5,
+            leading=14,
+            textColor=colors.HexColor("#222222"),
+            leftIndent=18,
+            bulletIndent=8,
+            spaceAfter=7,
+        ),
+        "h2": ParagraphStyle(
+            "PdfH2",
+            parent=base["Heading2"],
+            fontName="Helvetica-Bold",
+            fontSize=12,
+            leading=15,
+            textColor=colors.HexColor("#1a5276"),
+            spaceBefore=14,
+            spaceAfter=8,
+        ),
+        "italic": ParagraphStyle(
+            "PdfItalic",
+            parent=base["Italic"],
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#555555"),
+        ),
+    }
+
+
+def _pdf_cover_section(report: dict[str, Any], styles: dict) -> list:
+    """Header + summary block matching client PDF layout."""
+    branch = report.get("branch", "Unknown")
+    story = [
+        Paragraph("Fuel Reconciliation — Action Items", styles["title"]),
+        Paragraph(f"<b>Branch:</b> {branch}", styles["meta"]),
+        Paragraph(
+            f"<b>Generated:</b> {datetime.now().strftime('%d %b %Y %H:%M')}",
+            styles["meta"],
+        ),
+        Spacer(1, 0.25 * cm),
+        HRFlowable(
+            width="100%",
+            thickness=0.75,
+            color=colors.HexColor("#b0b8c4"),
+            spaceBefore=2,
+            spaceAfter=12,
+        ),
+        Paragraph(f"{branch} — Items needing attention", styles["section"]),
+    ]
+    for line in attention_summary_bullets(report):
+        story.append(Paragraph(f"• {line}", styles["bullet"]))
+    story.append(Spacer(1, 0.45 * cm))
+    return story
 
 
 def _stmt_rows(rows: list[dict]) -> list[list]:
@@ -59,45 +159,26 @@ def _cars_rows(rows: list[dict]) -> list[list]:
 
 def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
     att = extract_attention_items(report)
+    styles = _pdf_styles()
     doc = SimpleDocTemplate(
         str(output_path),
         pagesize=A4,
         rightMargin=2 * cm,
         leftMargin=2 * cm,
-        topMargin=2 * cm,
+        topMargin=1.8 * cm,
         bottomMargin=2 * cm,
     )
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "Title",
-        parent=styles["Heading1"],
-        fontSize=16,
-        spaceAfter=12,
-    )
     branch = report.get("branch", "Unknown")
-    story = [
-        Paragraph("Fuel Reconciliation — Action items", title_style),
-        Paragraph(f"Branch: <b>{branch}</b>", styles["Normal"]),
-        Paragraph(
-            f"Generated: {datetime.now().strftime('%d %b %Y %H:%M')}",
-            styles["Normal"],
-        ),
-        Spacer(1, 0.3 * cm),
-        Paragraph(
-            format_attention_summary_text(report).replace("\n", "<br/>"),
-            styles["Normal"],
-        ),
-        Spacer(1, 0.5 * cm),
-    ]
+    story = _pdf_cover_section(report, styles)
 
     def add_section(heading: str, headers: list[str], rows: list[list]) -> None:
-        story.append(Paragraph(heading, styles["Heading2"]))
+        story.append(Paragraph(heading, styles["h2"]))
         if not rows:
-            story.append(Paragraph("None.", styles["Italic"]))
+            story.append(Paragraph("None.", styles["italic"]))
             story.append(Spacer(1, 0.3 * cm))
             return
         data = [headers] + rows
-        table = Table(data, repeatRows=1)
+        table = Table(data, repeatRows=1, colWidths=None)
         table.setStyle(
             TableStyle(
                 [
@@ -106,6 +187,9 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("FONTSIZE", (0, 0), (-1, -1), 8),
                     ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
                     (
                         "ROWBACKGROUNDS",
                         (0, 1),
@@ -116,7 +200,7 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
             )
         )
         story.append(table)
-        story.append(Spacer(1, 0.5 * cm))
+        story.append(Spacer(1, 0.45 * cm))
 
     card = att["card_not_on_tab"]
     add_section(
@@ -140,20 +224,8 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
     )
     cars_note = cars_section_empty_note(report)
     if cars_note:
-        story.append(Paragraph(f"<i>{cars_note}</i>", styles["Italic"]))
-        story.append(Spacer(1, 0.2 * cm))
-    story.append(
-        Paragraph(f"<i>{cars_loc_help_text(branch)}</i>", styles["Italic"])
-    )
-    story.append(Spacer(1, 0.3 * cm))
-
-    if att["credit_reversal_count"]:
-        story.append(
-            Paragraph(
-                f"<i>{att['credit_reversal_count']} credit reversal(s) on the statement "
-                "— already netted in the match count; no table.</i>",
-                styles["Italic"],
-            )
-        )
+        story.append(Paragraph(f"<i>{cars_note}</i>", styles["italic"]))
+        story.append(Spacer(1, 0.15 * cm))
+    story.append(Paragraph(f"<i>{cars_loc_help_text(branch)}</i>", styles["italic"]))
 
     doc.build(story)
