@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDragEnterEvent, QDropEvent
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -11,6 +11,9 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -68,6 +71,7 @@ class DropZone(QFrame):
         self.hint.show()
         self.files.hide()
         self.setProperty("hasFiles", False)
+        self.setMaximumHeight(16777215)
         self._repolish()
 
     def _repolish(self) -> None:
@@ -78,9 +82,13 @@ class DropZone(QFrame):
     def _show_files(self, paths: list[Path]) -> None:
         self.title.setText(f"{len(paths)} file(s) ready")
         self.hint.hide()
-        self.files.setText("\n".join(f"✓  {p.name}" for p in paths))
+        lines = [f"✓  {p.name}" for p in paths[:4]]
+        if len(paths) > 4:
+            lines.append(f"… +{len(paths) - 4} more")
+        self.files.setText("\n".join(lines))
         self.files.show()
         self.setProperty("hasFiles", True)
+        self.setMaximumHeight(130)
         self._repolish()
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
@@ -150,13 +158,14 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
-        root.setContentsMargins(24, 24, 24, 24)
-        root.setSpacing(16)
+        root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(10)
 
         header = QFrame()
         header.setObjectName("AppHeader")
+        header.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(20, 14, 20, 14)
+        header_layout.setContentsMargins(20, 12, 20, 12)
         title_block = QVBoxLayout()
         title_block.setSpacing(2)
         title = QLabel(APP_NAME)
@@ -169,9 +178,21 @@ class MainWindow(QMainWindow):
         header_layout.addStretch()
         root.addWidget(header)
 
+        splitter = QSplitter(Qt.Vertical)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(6)
+
+        # --- Top half: import (compact) ---
+        top_pane = QWidget()
+        top_layout = QVBoxLayout(top_pane)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(8)
+
         import_card, import_layout = self._card("Import data")
+        import_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.drop_zone = DropZone()
-        self.drop_zone.setMinimumHeight(140)
+        self.drop_zone.setMinimumHeight(72)
+        self.drop_zone.setMaximumHeight(130)
         import_layout.addWidget(self.drop_zone)
 
         btn_row = QHBoxLayout()
@@ -187,14 +208,24 @@ class MainWindow(QMainWindow):
         btn_row.addWidget(import_btn)
         btn_row.addStretch()
         import_layout.addLayout(btn_row)
-        root.addWidget(import_card)
+        top_layout.addWidget(import_card)
 
         self.status_label = QLabel("Ready — add your three files, then import.")
         self.status_label.setObjectName("StatusPill")
         self.status_label.setWordWrap(True)
-        root.addWidget(self.status_label)
+        self.status_label.setMaximumHeight(72)
+        top_layout.addWidget(self.status_label)
+        top_layout.addStretch(0)
+
+        # --- Bottom half: review + scrollable table ---
+        bottom_pane = QWidget()
+        bottom_layout = QVBoxLayout(bottom_pane)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(0)
 
         review_card, review_layout = self._card("Review && export")
+        review_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        review_layout.setSpacing(10)
 
         controls = QHBoxLayout()
         controls.setSpacing(16)
@@ -237,8 +268,13 @@ class MainWindow(QMainWindow):
         self.summary_label.setText(
             "<p style='color:#64748b'>Import files to see the action summary.</p>"
         )
-        self.summary_label.setMinimumHeight(80)
-        review_layout.addWidget(self.summary_label)
+        summary_scroll = QScrollArea()
+        summary_scroll.setWidgetResizable(True)
+        summary_scroll.setFrameShape(QFrame.NoFrame)
+        summary_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        summary_scroll.setMaximumHeight(110)
+        summary_scroll.setWidget(self.summary_label)
+        review_layout.addWidget(summary_scroll)
 
         self.table = QTableWidget()
         self.table.setAlternatingRowColors(True)
@@ -247,7 +283,9 @@ class MainWindow(QMainWindow):
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.setMinimumHeight(220)
+        self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         review_layout.addWidget(self.table, 1)
 
         self.empty_label = QLabel(
@@ -256,11 +294,28 @@ class MainWindow(QMainWindow):
         )
         self.empty_label.setObjectName("EmptyState")
         self.empty_label.setAlignment(Qt.AlignCenter)
+        self.empty_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.empty_label.hide()
-        review_layout.addWidget(self.empty_label)
+        review_layout.addWidget(self.empty_label, 1)
 
-        root.addWidget(review_card, 1)
+        bottom_layout.addWidget(review_card, 1)
+
+        splitter.addWidget(top_pane)
+        splitter.addWidget(bottom_pane)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        root.addWidget(splitter, 1)
+
+        self._splitter = splitter
+        self._split_sized = False
         self._refresh_batches()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        if not self._split_sized and hasattr(self, "_splitter"):
+            h = max(self.height() - 72, 420)
+            self._splitter.setSizes([int(h * 0.35), int(h * 0.65)])
+            self._split_sized = True
 
     def _browse_files(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(

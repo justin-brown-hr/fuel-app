@@ -62,8 +62,21 @@ QWidget {{
     border: 2px dashed {COLORS["border_strong"]};
     border-radius: 14px;
     color: {COLORS["text_muted"]};
-    font-size: 14px;
-    padding: 32px 24px;
+    font-size: 13px;
+    padding: 12px 16px;
+}}
+QSplitter::handle {{
+    background-color: {COLORS["border"]};
+    height: 4px;
+    margin: 4px 0;
+    border-radius: 2px;
+}}
+QSplitter::handle:hover {{
+    background-color: {COLORS["primary"]};
+}}
+QScrollArea {{
+    background: transparent;
+    border: none;
 }}
 #DropZone[hasFiles="true"] {{
     background-color: {COLORS["accent_soft"]};
