@@ -34,6 +34,7 @@ _FARMLANDS_LITRES = re.compile(
 _BRANCH_FROM_SUPPLIER = {
     "kerikeri": "Kerikeri",
     "whangarei": "Whangarei",
+    "whanganui": "Whanganui",
     "taupo": "Taupo",
     "rotorua": "Rotorua",
     "tauranga": "Tauranga",

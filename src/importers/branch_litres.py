@@ -90,6 +90,7 @@ _PARSERS = {
     "Taupo": _parse_taupo_sheet,
     "Kerikeri": _parse_kerikeri_sheet,
     "Whangarei": _parse_whangarei_sheet,
+    "Whanganui": _parse_whangarei_sheet,
 }
 
 

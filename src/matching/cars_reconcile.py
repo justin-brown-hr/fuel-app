@@ -17,7 +17,7 @@ def reconcile_cars_plus(
 ) -> list[UnmatchedLitres]:
     """
     Flag branch tab rows (with a real RA) that have no Cars+ fuel charge on the same date
-    at this branch's Cars+ locations (RA Loc Out prefix, e.g. WHN/WNU for Whangarei).
+    at this branch's Cars+ locations (e.g. WHN/WZZ for Whangarei, WNU for Whanganui).
     """
     loc_label = cars_loc_label(branch)
     branch_items = [

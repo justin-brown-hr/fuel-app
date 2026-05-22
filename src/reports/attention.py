@@ -75,7 +75,7 @@ def format_attention_summary_text(report: dict[str, Any]) -> str:
         )
     if n_tab:
         lines.append(
-            f"* **{n_tab}** branch tab row(s) — on WHN sheet, no matching card line"
+            f"* **{n_tab}** branch tab row(s) — on branch sheet, no matching card line"
         )
     from src.config import cars_loc_label
     from src.reports.cars_plus_note import cars_section_empty_note

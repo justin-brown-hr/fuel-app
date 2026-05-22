@@ -40,7 +40,8 @@ LOC_TO_BRANCH: dict[str, str] = {
     "KKE": "Kerikeri",
     "KKZ": "Kerikeri",
     "WHN": "Whangarei",
-    "WNU": "Whangarei",
+    "WZZ": "Whangarei",
+    "WNU": "Whanganui",
     "WHK": "Whakatane",
     "RTR": "Rotorua",
     "TRG": "Tauranga",
@@ -58,6 +59,7 @@ BRANCH_TAB_CODE: dict[str, str] = {
     "Taupo": "TUO",
     "Kerikeri": "KKE",
     "Whangarei": "WHN",
+    "Whanganui": "WNU",
     "Whakatane": "WHK",
     "Rotorua": "RTR",
     "Tauranga": "TRG",
@@ -79,7 +81,8 @@ def branch_from_loc(loc: str) -> str | None:
 BRANCH_CARS_LOC_PREFIXES: dict[str, tuple[str, ...]] = {
     "Taupo": ("TUO",),
     "Kerikeri": ("KKE", "KKZ"),
-    "Whangarei": ("WHN", "WNU"),
+    "Whangarei": ("WHN", "WZZ"),
+    "Whanganui": ("WNU",),
     "Whakatane": ("WHK",),
     "Rotorua": ("RTR",),
     "Tauranga": ("TRG",),
@@ -97,7 +100,8 @@ def cars_loc_prefixes(branch: str) -> tuple[str, ...]:
 
 # Plain-language labels for PDF / UI (not raw codes only)
 BRANCH_CARS_LOC_LABEL: dict[str, str] = {
-    "Whangarei": "Whangarei (Cars+ codes WHN & WNU)",
+    "Whangarei": "Whangarei (Cars+ WHN50/60 & WZZ52)",
+    "Whanganui": "Whanganui (Cars+ WNU50/60)",
     "Taupo": "Taupo (Cars+ code TUO)",
     "Kerikeri": "Kerikeri (Cars+ codes KKE & KKZ)",
 }
@@ -112,9 +116,14 @@ def cars_loc_label(branch: str) -> str:
 def cars_loc_help_text(branch: str) -> str:
     if branch == "Whangarei":
         return (
-            "WHN = Whangarei depot on Cars+. WNU = Whangarei North (same branch, "
-            "second depot code). Only charges with RA Loc Out starting WHN or WNU "
-            "count for this check — not Auckland, Taupo, etc."
+            "Whangarei on Cars+: WHN50, WHN60, WZZ52. "
+            "WNU50/WNU60 is Whanganui (different location) and is not used for this "
+            "Whangarei check."
+        )
+    if branch == "Whanganui":
+        return (
+            "Whanganui on Cars+: WNU50, WNU60. "
+            "WHN/WZZ codes are Whangarei, not Whanganui."
         )
     prefixes = ", ".join(cars_loc_prefixes(branch))
     return f"Cars+ RA Loc Out must start with: {prefixes} for this branch."

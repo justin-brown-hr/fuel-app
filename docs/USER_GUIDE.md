@@ -27,7 +27,7 @@ Import your monthly files and compare **fuel card litres** to **branch tab litre
 
 1. **Fuel card not on branch tab** — On Farmlands/Mobil but not on the branch spreadsheet (incl. NONREV check).
 2. **Branch tab without card** — On the spreadsheet but no matching card line.
-3. **Cars+ not billed at WHN/WNU** (for Whangarei) — Operational fill not charged on Cars+ at that branch’s location codes only (not Auckland, Taupo, etc.).
+3. **Cars+ billing** — Operational fill not charged on Cars+ at that branch’s location (Whangarei: WHN50/60 & WZZ52; Whanganui: WNU50/60 — separate towns).
 
 Summary at the top shows how many card lines matched; tables list follow-ups only.
 
