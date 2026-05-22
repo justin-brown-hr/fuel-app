@@ -77,14 +77,32 @@ def format_attention_summary_text(report: dict[str, Any]) -> str:
         lines.append(
             f"* **{n_tab}** branch tab row(s) — on WHN sheet, no matching card line"
         )
-    if n_cars:
-        from src.config import cars_loc_prefixes
+    from src.config import cars_loc_label
+    from src.reports.cars_plus_note import cars_section_empty_note
 
-        locs = "/".join(cars_loc_prefixes(branch)) or branch
+    cars_total = report.get("cars_plus_imported_total", 0)
+    cars_at_loc = report.get("cars_plus_at_branch_loc", 0)
+    if n_cars:
         lines.append(
-            f"* **{n_cars}** operational fill(s) — not billed on Cars+ at **{locs}** "
-            f"(that date & RA; other locations not counted)"
+            f"* **{n_cars}** operational fill(s) — not billed on Cars+ at "
+            f"**{cars_loc_label(branch)}** (same date & RA)"
         )
+    elif cars_total == 0:
+        lines.append(
+            "* **Cars+** — file not loaded (re-import; copy xlsx off OneDrive if locked)"
+        )
+    elif cars_at_loc > 0:
+        lines.append(
+            f"* **Cars+** — **0** billing gaps ({cars_at_loc} {cars_loc_label(branch)} "
+            "charges loaded; all matched)"
+        )
+    else:
+        lines.append(
+            f"* **Cars+** — no {cars_loc_label(branch)} rows in export (check RA Loc Out)"
+        )
+    note = cars_section_empty_note(report)
+    if note and not n_cars:
+        lines.append(f"* _{note}_")
     if n_cred:
         lines.append(
             f"* **{n_cred}** credit reversal(s) on statement (informational — no action)"
@@ -126,7 +144,7 @@ def attention_rows_for_table(report: dict[str, Any]) -> list[dict[str, Any]]:
                 "transaction_date": r["transaction_date"],
                 "litres": r["litres"],
                 "detail": r.get("ra_number") or "",
-                "action": r.get("reason") or "Charge RA on Cars+",
+                "action": r.get("reason") or "Charge customer on Cars+",
             }
         )
     rows.sort(key=lambda x: (x["category"], x["transaction_date"]))

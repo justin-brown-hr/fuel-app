@@ -5,28 +5,61 @@ import pandas as pd
 from src.config import branch_from_loc
 from src.models import CarsPlusRow
 
-from .utils import normalize_ra, parse_excel_date, parse_time, safe_float
+from .utils import normalize_ra, open_data_file, parse_excel_date, parse_time, safe_float
+
+
+def _find_column(col_map: dict[str, str], *candidates: str) -> str | None:
+    for name in candidates:
+        key = name.lower()
+        if key in col_map:
+            return col_map[key]
+    for key, original in col_map.items():
+        for part in candidates:
+            if part.lower() in key:
+                return original
+    return None
 
 
 def import_cars_plus(path: Path) -> list[CarsPlusRow]:
-    df = pd.read_excel(path, sheet_name=0, header=0)
+    read_path = open_data_file(path)
+    df = pd.read_excel(read_path, sheet_name=0, header=0)
     df.columns = [str(c).strip() for c in df.columns]
     col_map = {c.lower(): c for c in df.columns}
 
-    def col(*names: str) -> str | None:
-        for n in names:
-            key = n.lower()
-            if key in col_map:
-                return col_map[key]
-        return None
+    loc_out = _find_column(
+        col_map,
+        "ra loc out",
+        "ra loc",
+        "loc out",
+        "location out",
+        "location",
+        "out loc",
+    )
+    loc_in = _find_column(col_map, "ra loc in", "loc in", "location in")
+    ra_col = _find_column(col_map, "ra number", "ra", "ra #", "rental agreement", "contract")
+    date_col = _find_column(
+        col_map, "date in", "date out", "date", "checkout date", "check out date"
+    )
+    time_col = _find_column(col_map, "time in", "time", "time out")
+    charge_col = _find_column(
+        col_map,
+        "fuel charges",
+        "fuel charge",
+        "fuel chg",
+        "fuel",
+        "charge",
+    )
+    type_col = _find_column(col_map, "fuel type", "fuel", "product")
 
-    loc_out = col("ra loc out", "ra loc")
-    loc_in = col("ra loc in")
-    ra_col = col("ra number", "ra")
-    date_col = col("date in", "date")
-    time_col = col("time in", "time")
-    charge_col = col("fuel charges", "fuel charge")
-    type_col = col("fuel", "fuel type")
+    if not loc_out or not ra_col or not date_col:
+        raise ValueError(
+            f"Cars+ columns not found. Need location, RA, and date. "
+            f"Found columns: {', '.join(df.columns[:12])}..."
+        )
+    if not charge_col:
+        raise ValueError(
+            f"Cars+ fuel charge column not found. Columns: {', '.join(df.columns[:12])}..."
+        )
 
     rows: list[CarsPlusRow] = []
     for _, r in df.iterrows():
@@ -43,6 +76,9 @@ def import_cars_plus(path: Path) -> list[CarsPlusRow]:
         charge = safe_float(r.get(charge_col) if charge_col else None)
         if charge is None:
             continue
+        fuel_type = ""
+        if type_col and type_col != charge_col:
+            fuel_type = str(r.get(type_col, "") or "").strip()
         rows.append(
             CarsPlusRow(
                 branch=branch,
@@ -52,7 +88,7 @@ def import_cars_plus(path: Path) -> list[CarsPlusRow]:
                 transaction_date=tx_date,
                 time=parse_time(r.get(time_col) if time_col else None) or "",
                 fuel_charge=charge,
-                fuel_type=str(r.get(type_col, "") if type_col else "").strip(),
+                fuel_type=fuel_type,
             )
         )
     return rows

@@ -1,6 +1,24 @@
 import re
+import shutil
+import tempfile
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Optional
+
+
+def open_data_file(path: Path) -> Path:
+    """
+    Return a path pandas can read. Copies to temp if the file is locked
+    (e.g. OneDrive / Excel open / Permission denied).
+    """
+    path = Path(path)
+    try:
+        with path.open("rb"):
+            return path
+    except OSError:
+        dest = Path(tempfile.gettempdir()) / f"fuel_reconcile_{path.name}"
+        shutil.copy2(path, dest)
+        return dest
 
 
 def normalize_ra(value) -> str:

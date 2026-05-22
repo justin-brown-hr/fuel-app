@@ -95,6 +95,31 @@ def cars_loc_prefixes(branch: str) -> tuple[str, ...]:
     return BRANCH_CARS_LOC_PREFIXES.get(branch, (branch_tab_code(branch),))
 
 
+# Plain-language labels for PDF / UI (not raw codes only)
+BRANCH_CARS_LOC_LABEL: dict[str, str] = {
+    "Whangarei": "Whangarei (Cars+ codes WHN & WNU)",
+    "Taupo": "Taupo (Cars+ code TUO)",
+    "Kerikeri": "Kerikeri (Cars+ codes KKE & KKZ)",
+}
+
+
+def cars_loc_label(branch: str) -> str:
+    return BRANCH_CARS_LOC_LABEL.get(
+        branch, f"{branch} ({'/'.join(cars_loc_prefixes(branch))})"
+    )
+
+
+def cars_loc_help_text(branch: str) -> str:
+    if branch == "Whangarei":
+        return (
+            "WHN = Whangarei depot on Cars+. WNU = Whangarei North (same branch, "
+            "second depot code). Only charges with RA Loc Out starting WHN or WNU "
+            "count for this check — not Auckland, Taupo, etc."
+        )
+    prefixes = ", ".join(cars_loc_prefixes(branch))
+    return f"Cars+ RA Loc Out must start with: {prefixes} for this branch."
+
+
 def cars_row_at_branch_location(ra_loc_out: str, branch: str) -> bool:
     loc = (ra_loc_out or "").strip().upper()
     if not loc:

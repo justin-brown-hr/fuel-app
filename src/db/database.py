@@ -484,6 +484,14 @@ class Database:
                 """,
                 (batch_id, branch),
             ).fetchall()
+            cars_imported_total = conn.execute(
+                "SELECT COUNT(*) FROM cars_plus WHERE batch_id = ?",
+                (batch_id,),
+            ).fetchone()[0]
+            cars_branch_rows = conn.execute(
+                "SELECT ra_loc_out FROM cars_plus WHERE batch_id = ? AND branch = ?",
+                (batch_id, branch),
+            ).fetchall()
 
         credits_branch = sum(1 for r in litres if is_credit_litres(r["litres"]))
         credits_statement = sum(
@@ -512,6 +520,12 @@ class Database:
 
         summary = self.get_branch_summary(batch_id, branch) or {}
 
+        cars_at_branch_loc = sum(
+            1
+            for r in cars_branch_rows
+            if cars_row_at_branch_location(r["ra_loc_out"] or "", branch)
+        )
+
         billed_at_branch = [
             dict(r)
             for r in billed
@@ -532,5 +546,7 @@ class Database:
             "credits_skipped_branch": credits_branch,
             "credits_skipped_statement": credits_statement,
             "nonrev_skipped_branch": summary.get("nonrev_row_count", 0),
+            "cars_plus_imported_total": cars_imported_total,
+            "cars_plus_at_branch_loc": cars_at_branch_loc,
             "summary": summary,
         }

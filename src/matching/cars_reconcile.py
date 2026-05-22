@@ -1,6 +1,6 @@
 """Match branch tab RAs to Cars+ fuel charges (customer billing)."""
 
-from src.config import branch_tab_code, cars_loc_prefixes, filter_cars_for_branch
+from src.config import cars_loc_label, filter_cars_for_branch
 from src.importers.utils import normalize_ra
 from src.models import BranchLitresRow, CarsPlusRow, UnmatchedLitres
 
@@ -19,7 +19,7 @@ def reconcile_cars_plus(
     Flag branch tab rows (with a real RA) that have no Cars+ fuel charge on the same date
     at this branch's Cars+ locations (RA Loc Out prefix, e.g. WHN/WNU for Whangarei).
     """
-    loc_label = "/".join(cars_loc_prefixes(branch)) or branch_tab_code(branch)
+    loc_label = cars_loc_label(branch)
     branch_items = [
         r
         for r in branch_rows
@@ -60,10 +60,7 @@ def reconcile_cars_plus(
                     transaction_date=row.transaction_date,
                     litres=row.litres,
                     time=row.time,
-                    reason=(
-                        f"Not billed at {loc_label} on Cars+ (same date & RA; "
-                        f"other locations ignored)"
-                    ),
+                    reason=f"Not billed on Cars+ at {loc_label} (same date & RA)",
                     source="cars_plus",
                     stage="cars_plus",
                 )

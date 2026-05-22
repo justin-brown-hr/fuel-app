@@ -3,6 +3,7 @@ from pathlib import Path
 
 from src.db.database import Database
 from src.importers import import_branch_litres, import_cars_plus, import_fuel_statement
+from src.importers.utils import open_data_file
 from src.matching import reconcile
 
 
@@ -40,7 +41,7 @@ class ImportService:
 
         try:
             if branch_litres and branch_litres.exists():
-                branch_rows = import_branch_litres(branch_litres)
+                branch_rows = import_branch_litres(open_data_file(branch_litres))
                 self.db.save_branch_litres(batch_id, branch_rows)
                 result.branch_litres_count = len(branch_rows)
         except Exception as e:
@@ -56,7 +57,7 @@ class ImportService:
 
         try:
             if fuel_statement and fuel_statement.exists():
-                statement_rows = import_fuel_statement(fuel_statement)
+                statement_rows = import_fuel_statement(open_data_file(fuel_statement))
                 self.db.save_fuel_statement(batch_id, statement_rows)
                 result.fuel_statement_count = len(statement_rows)
         except Exception as e:

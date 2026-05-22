@@ -8,9 +8,10 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from src.config import cars_loc_prefixes
+from src.config import cars_loc_help_text
 
 from .attention import extract_attention_items, format_attention_summary_text
+from .cars_plus_note import cars_section_empty_note, cars_section_title
 
 
 def _fmt_date(iso: str) -> str:
@@ -132,12 +133,19 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
     )
 
     cars = att["cars_not_charged"]
-    locs = "/".join(cars_loc_prefixes(branch)) or branch
     add_section(
-        f"3. Cars+ — not billed at {locs} ({len(cars)})",
+        cars_section_title(branch, len(cars)),
         ["Date", "Litres", "RA #", "Notes"],
         _cars_rows(cars),
     )
+    cars_note = cars_section_empty_note(report)
+    if cars_note:
+        story.append(Paragraph(f"<i>{cars_note}</i>", styles["Italic"]))
+        story.append(Spacer(1, 0.2 * cm))
+    story.append(
+        Paragraph(f"<i>{cars_loc_help_text(branch)}</i>", styles["Italic"])
+    )
+    story.append(Spacer(1, 0.3 * cm))
 
     if att["credit_reversal_count"]:
         story.append(
