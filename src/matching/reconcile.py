@@ -17,6 +17,9 @@ from .fuel_type import normalize_fuel_type
 from .nonrev import is_branch_nonrev
 
 LITRE_TOLERANCE = 0.05
+# Branch spreadsheet is often filled in days after the Farmlands card line
+MAX_BRANCH_AFTER_STATEMENT_DAYS = 14
+MIN_MATCH_SCORE = 1000
 
 
 @dataclass
@@ -136,14 +139,20 @@ def _litres_match(a: float, b: float) -> bool:
 
 
 def _date_proximity_score(branch_date, statement_date) -> int:
-    days = abs((branch_date - statement_date).days)
-    if days == 0:
+    """
+    Prefer branch tab on or after the card date (late data entry is common).
+    Penalise branch rows dated well before the statement line.
+    """
+    if branch_date == statement_date:
         return 100
-    if days <= 3:
-        return 50 - days
-    if days <= 7:
-        return 20 - days
-    return max(0, 10 - days)
+    delta = (branch_date - statement_date).days
+    if 0 < delta <= MAX_BRANCH_AFTER_STATEMENT_DAYS:
+        return 95 - delta * 3
+    if -2 <= delta < 0:
+        return 35 + delta * 8
+    if delta < -2:
+        return max(0, 12 + delta)
+    return max(0, 25 - min(abs(delta), 25))
 
 
 def _match_score(branch: BranchLitresRow, statement: FuelStatementRow) -> int:
@@ -162,28 +171,29 @@ def _match_branch_pool(
     branch_items: list[BranchLitresRow],
     statement_items: list[FuelStatementRow],
 ) -> tuple[list[BranchLitresRow], list[FuelStatementRow], int]:
-    used_stmt: set[int] = set()
+    """Match each card line to the best branch row (same litres, RA when present)."""
+    used_branch: set[int] = set()
     matched_count = 0
-    unmatched_branch: list[BranchLitresRow] = []
+    unmatched_stmt: list[FuelStatementRow] = []
 
-    for br in branch_items:
-        best_i = -1
+    for st in statement_items:
+        best_j = -1
         best_score = -1
-        for i, st in enumerate(statement_items):
-            if i in used_stmt:
+        for j, br in enumerate(branch_items):
+            if j in used_branch:
                 continue
             score = _match_score(br, st)
             if score > best_score:
                 best_score = score
-                best_i = i
-        if best_i >= 0:
-            used_stmt.add(best_i)
+                best_j = j
+        if best_j >= 0 and best_score >= MIN_MATCH_SCORE:
+            used_branch.add(best_j)
             matched_count += 1
         else:
-            unmatched_branch.append(br)
+            unmatched_stmt.append(st)
 
-    unmatched_stmt = [
-        statement_items[i] for i in range(len(statement_items)) if i not in used_stmt
+    unmatched_branch = [
+        branch_items[j] for j in range(len(branch_items)) if j not in used_branch
     ]
     return unmatched_branch, unmatched_stmt, matched_count
 
