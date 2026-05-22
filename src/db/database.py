@@ -109,6 +109,16 @@ class Database:
                     ON branch_litres(batch_id, branch);
                 CREATE INDEX IF NOT EXISTS idx_cp_batch_branch
                     ON cars_plus(batch_id, branch);
+                CREATE TABLE IF NOT EXISTS attention_overrides (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id INTEGER NOT NULL,
+                    branch TEXT NOT NULL,
+                    item_key TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    note TEXT,
+                    UNIQUE(batch_id, branch, item_key),
+                    FOREIGN KEY (batch_id) REFERENCES import_batches(id)
+                );
                 CREATE TABLE IF NOT EXISTS branch_summaries (
                     batch_id INTEGER NOT NULL,
                     branch TEXT NOT NULL,
@@ -133,6 +143,20 @@ class Database:
             self._migrate_schema(conn)
 
     def _migrate_schema(self, conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS attention_overrides (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                branch TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                note TEXT,
+                UNIQUE(batch_id, branch, item_key),
+                FOREIGN KEY (batch_id) REFERENCES import_batches(id)
+            )
+            """
+        )
         cols = {r[1] for r in conn.execute("PRAGMA table_info(unmatched)").fetchall()}
         if "source" not in cols:
             conn.execute(
@@ -198,6 +222,31 @@ class Database:
                 (credits_branch, credits_statement, batch_id),
             )
 
+    def add_attention_override(
+        self, batch_id: int, branch: str, item_key: str, note: str = ""
+    ) -> None:
+        now = datetime.now().isoformat(timespec="seconds")
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO attention_overrides
+                (batch_id, branch, item_key, created_at, note)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (batch_id, branch, item_key, now, note),
+            )
+
+    def get_attention_override_keys(self, batch_id: int, branch: str) -> list[str]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT item_key FROM attention_overrides
+                WHERE batch_id = ? AND branch = ?
+                """,
+                (batch_id, branch),
+            ).fetchall()
+        return [r[0] for r in rows]
+
     def get_batch_credits(self, batch_id: int) -> tuple[int, int]:
         with self._connect() as conn:
             row = conn.execute(
@@ -248,6 +297,7 @@ class Database:
                 "fuel_statement",
                 "unmatched",
                 "branch_summaries",
+                "attention_overrides",
             ):
                 conn.execute(f"DELETE FROM {table} WHERE batch_id = ?", (batch_id,))
 
@@ -537,8 +587,11 @@ class Database:
             )
         ]
 
+        override_keys = self.get_attention_override_keys(batch_id, branch)
+
         return {
             "branch": branch,
+            "batch_id": batch_id,
             "litres": [dict(r) for r in litres],
             "billed": billed_at_branch,
             "statement": [dict(r) for r in statement],
@@ -548,6 +601,7 @@ class Database:
             "unmatched_statement": stmt_s2,
             "unmatched_branch": branch_s2,
             "unmatched_cars_plus": cars_um,
+            "attention_override_keys": override_keys,
             "credits_skipped_branch": credits_branch,
             "credits_skipped_statement": credits_statement,
             "nonrev_skipped_branch": summary.get("nonrev_row_count", 0),

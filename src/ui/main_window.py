@@ -427,14 +427,27 @@ class MainWindow(QMainWindow):
         self.summary_label.setText(summary_to_html(format_attention_summary_text(report)))
 
         rows = attention_rows_for_table(report)
-        headers = ["Type", "Date", "Litres", "RA / fuel", "Action"]
+        headers = ["Type", "Date", "Litres", "RA / fuel", "Action", ""]
         self.table.setColumnCount(len(headers))
         self.table.setHorizontalHeaderLabels(headers)
         self.table.setRowCount(len(rows))
 
         has_rows = bool(rows)
         self.table.setVisible(has_rows)
+        override_n = len(report.get("attention_override_keys") or [])
+        if not has_rows and override_n:
+            self.empty_label.setText(
+                f"No open action items.\n{override_n} manually accepted — hidden from report."
+            )
+        else:
+            self.empty_label.setText(
+                "No action items for this branch.\n"
+                "Import files or use Accept on rows you have verified."
+            )
         self.empty_label.setVisible(not has_rows)
+
+        branch = self.branch_combo.currentText()
+        batch_id = self.current_batch_id
 
         for i, r in enumerate(rows):
             vals = [
@@ -449,9 +462,32 @@ class MainWindow(QMainWindow):
                 if j == 0:
                     item.setForeground(Qt.darkBlue)
                 self.table.setItem(i, j, item)
+
+            accept_btn = QPushButton("Accept")
+            accept_btn.setObjectName("AcceptButton")
+            accept_btn.setCursor(Qt.PointingHandCursor)
+            item_key = r.get("item_key", "")
+            accept_btn.clicked.connect(
+                lambda checked=False, k=item_key, b=branch, bid=batch_id: self._accept_item(
+                    bid, b, k
+                )
+            )
+            self.table.setCellWidget(i, 5, accept_btn)
+
         self.table.resizeColumnsToContents()
         if self.table.columnCount() > 4:
-            self.table.setColumnWidth(4, max(self.table.columnWidth(4), 280))
+            self.table.setColumnWidth(4, max(self.table.columnWidth(4), 220))
+        if self.table.columnCount() > 5:
+            self.table.setColumnWidth(5, 88)
+
+    def _accept_item(self, batch_id: int, branch: str, item_key: str) -> None:
+        if not batch_id or not item_key:
+            return
+        self.db.add_attention_override(batch_id, branch, item_key)
+        self._load_branch_table()
+        self.status_label.setText(
+            f"Accepted — item removed from report for {branch}."
+        )
 
     def _export_pdf(self) -> None:
         if not self.current_batch_id or not self.branch_combo.currentText():

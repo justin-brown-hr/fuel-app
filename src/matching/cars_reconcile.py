@@ -7,19 +7,19 @@ from src.models import BranchLitresRow, CarsPlusRow, UnmatchedLitres
 from .nonrev import is_branch_nonrev
 from .ra_match import ra_matches
 
-# Billing can post on Cars+ a few days before/after the branch tab date
-CARS_DATE_WINDOW_DAYS = 7
+# Branch tab vs Cars+ dates often differ (fill / return / export)
+CARS_DATE_WINDOW_DAYS = 14
 
 
-def _cars_billing_found(
-    row: BranchLitresRow, loc_cars: list[CarsPlusRow]
+def _best_ra_date_match(
+    row: BranchLitresRow, candidates: list[CarsPlusRow]
 ) -> tuple[bool, int]:
-    """Return (found, best day offset) for RA match within branch loc codes."""
+    """Best RA match within date window (does not consume charges — each row checked)."""
     bra = normalize_ra(row.ra_number)
     if not bra:
         return False, 0
     best_days = CARS_DATE_WINDOW_DAYS + 1
-    for c in loc_cars:
+    for c in candidates:
         if not c.ra_number or not c.ra_number[0].isdigit():
             continue
         if not ra_matches(bra, normalize_ra(c.ra_number)):
@@ -30,6 +30,24 @@ def _cars_billing_found(
     return best_days <= CARS_DATE_WINDOW_DAYS, best_days
 
 
+def _cars_billing_found(
+    row: BranchLitresRow,
+    branch_cars: list[CarsPlusRow],
+    all_cars: list[CarsPlusRow],
+) -> tuple[bool, str]:
+    """
+    Tier 1: RA + date at branch loc (Out or In).
+    Tier 2: RA + date anywhere on Cars+ (other depot / cost centre).
+    """
+    found, _ = _best_ra_date_match(row, branch_cars)
+    if found:
+        return True, "branch"
+    found, _ = _best_ra_date_match(row, all_cars)
+    if found:
+        return True, "anywhere"
+    return False, ""
+
+
 def reconcile_cars_plus(
     branch_rows: list[BranchLitresRow],
     cars_rows: list[CarsPlusRow],
@@ -38,8 +56,8 @@ def reconcile_cars_plus(
     operational_only: bool = True,
 ) -> list[UnmatchedLitres]:
     """
-    Flag branch tab rows (with a real RA) with no Cars+ fuel charge at this branch's
-    location codes (WHN/WZZ for Whangarei, etc.) within CARS_DATE_WINDOW_DAYS.
+    Flag operational branch rows with no Cars+ fuel charge for the RA within
+    CARS_DATE_WINDOW_DAYS (branch location first, then any Cars+ location).
     """
     loc_label = cars_loc_label(branch)
     branch_items = [
@@ -53,11 +71,11 @@ def reconcile_cars_plus(
         if r.ra_number and r.ra_number[0].isdigit()
     ]
 
-    loc_cars = filter_cars_for_branch(cars_rows, branch)
+    branch_cars = filter_cars_for_branch(cars_rows, branch)
 
     unmatched: list[UnmatchedLitres] = []
     for row in branch_items:
-        found, _ = _cars_billing_found(row, loc_cars)
+        found, tier = _cars_billing_found(row, branch_cars, cars_rows)
         if not found:
             unmatched.append(
                 UnmatchedLitres(
@@ -68,8 +86,9 @@ def reconcile_cars_plus(
                     litres=row.litres,
                     time=row.time,
                     reason=(
-                        f"Not billed on Cars+ at {loc_label} "
-                        f"(RA match within {CARS_DATE_WINDOW_DAYS} days)"
+                        f"Not billed on Cars+ for RA {row.ra_number} "
+                        f"(within {CARS_DATE_WINDOW_DAYS} days at {loc_label} "
+                        f"or any Cars+ location)"
                     ),
                     source="cars_plus",
                     stage="cars_plus",

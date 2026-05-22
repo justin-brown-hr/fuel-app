@@ -151,6 +151,17 @@ QPushButton#AccentButton {{
 QPushButton#AccentButton:hover {{
     background-color: #bae6fd;
 }}
+QPushButton#AcceptButton {{
+    background-color: {COLORS["surface"]};
+    color: {COLORS["text"]};
+    border: 1px solid {COLORS["border_strong"]};
+    padding: 4px 10px;
+    font-size: 12px;
+}}
+QPushButton#AcceptButton:hover {{
+    background-color: {COLORS["accent_soft"]};
+    border-color: {COLORS["primary"]};
+}}
 QComboBox {{
     background-color: {COLORS["surface"]};
     border: 1px solid {COLORS["border_strong"]};
