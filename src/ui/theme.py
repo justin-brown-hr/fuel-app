@@ -67,9 +67,14 @@ QWidget {{
 }}
 QSplitter::handle {{
     background-color: {COLORS["border"]};
-    height: 4px;
-    margin: 4px 0;
+    margin: 0 4px;
     border-radius: 2px;
+}}
+QSplitter::handle:horizontal {{
+    width: 4px;
+}}
+QSplitter::handle:vertical {{
+    height: 4px;
 }}
 QSplitter::handle:hover {{
     background-color: {COLORS["primary"]};

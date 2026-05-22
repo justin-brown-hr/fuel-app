@@ -136,8 +136,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{APP_NAME} v{APP_VERSION}")
-        self.resize(1100, 760)
-        self.setMinimumSize(900, 600)
+        self.resize(1200, 720)
+        self.setMinimumSize(960, 560)
         self.db = Database()
         self.import_service = ImportService(self.db)
         self.current_batch_id: int | None = None
@@ -178,25 +178,24 @@ class MainWindow(QMainWindow):
         header_layout.addStretch()
         root.addWidget(header)
 
-        splitter = QSplitter(Qt.Vertical)
+        splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
-        splitter.setHandleWidth(6)
+        splitter.setHandleWidth(5)
 
-        # --- Top half: import (compact) ---
-        top_pane = QWidget()
-        top_layout = QVBoxLayout(top_pane)
-        top_layout.setContentsMargins(0, 0, 0, 0)
-        top_layout.setSpacing(8)
+        # --- Left: import and controls ---
+        left_body = QWidget()
+        left_layout = QVBoxLayout(left_body)
+        left_layout.setContentsMargins(0, 0, 8, 0)
+        left_layout.setSpacing(10)
 
         import_card, import_layout = self._card("Import data")
-        import_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.drop_zone = DropZone()
         self.drop_zone.setMinimumHeight(72)
         self.drop_zone.setMaximumHeight(130)
         import_layout.addWidget(self.drop_zone)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
+        btn_row = QVBoxLayout()
+        btn_row.setSpacing(8)
         browse_btn = QPushButton("Browse files")
         browse_btn.clicked.connect(self._browse_files)
         import_btn = QPushButton("Import && reconcile")
@@ -206,75 +205,73 @@ class MainWindow(QMainWindow):
         browse_btn.setCursor(Qt.PointingHandCursor)
         btn_row.addWidget(browse_btn)
         btn_row.addWidget(import_btn)
-        btn_row.addStretch()
         import_layout.addLayout(btn_row)
-        top_layout.addWidget(import_card)
+        left_layout.addWidget(import_card)
 
         self.status_label = QLabel("Ready — add your three files, then import.")
         self.status_label.setObjectName("StatusPill")
         self.status_label.setWordWrap(True)
-        self.status_label.setMaximumHeight(72)
-        top_layout.addWidget(self.status_label)
-        top_layout.addStretch(0)
-
-        # --- Bottom half: review + scrollable table ---
-        bottom_pane = QWidget()
-        bottom_layout = QVBoxLayout(bottom_pane)
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_layout.setSpacing(0)
+        left_layout.addWidget(self.status_label)
 
         review_card, review_layout = self._card("Review && export")
-        review_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         review_layout.setSpacing(10)
 
-        controls = QHBoxLayout()
-        controls.setSpacing(16)
-
-        batch_col = QVBoxLayout()
-        batch_col.setSpacing(4)
         batch_lbl = QLabel("Import batch")
         batch_lbl.setObjectName("FieldLabel")
         self.batch_combo = QComboBox()
         self.batch_combo.currentIndexChanged.connect(self._on_batch_changed)
-        batch_col.addWidget(batch_lbl)
-        batch_col.addWidget(self.batch_combo)
-        controls.addLayout(batch_col, 2)
+        review_layout.addWidget(batch_lbl)
+        review_layout.addWidget(self.batch_combo)
 
-        branch_col = QVBoxLayout()
-        branch_col.setSpacing(4)
         branch_lbl = QLabel("Branch")
         branch_lbl.setObjectName("FieldLabel")
         self.branch_combo = QComboBox()
         self.branch_combo.currentTextChanged.connect(self._load_branch_table)
-        branch_col.addWidget(branch_lbl)
-        branch_col.addWidget(self.branch_combo)
-        controls.addLayout(branch_col, 1)
+        review_layout.addWidget(branch_lbl)
+        review_layout.addWidget(self.branch_combo)
 
-        export_col = QVBoxLayout()
-        export_col.setSpacing(4)
-        export_col.addWidget(QLabel(""))
         export_btn = QPushButton("Export PDF")
         export_btn.setObjectName("AccentButton")
         export_btn.setCursor(Qt.PointingHandCursor)
         export_btn.clicked.connect(self._export_pdf)
-        export_col.addWidget(export_btn)
-        controls.addLayout(export_col, 0)
-        review_layout.addLayout(controls)
+        review_layout.addWidget(export_btn)
+        left_layout.addWidget(review_card)
 
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.NoFrame)
+        left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        left_scroll.setWidget(left_body)
+        left_scroll.setMinimumWidth(300)
+        left_scroll.setMaximumWidth(420)
+
+        # --- Right: summary + table ---
+        right_pane = QWidget()
+        right_layout = QVBoxLayout(right_pane)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(10)
+
+        summary_card, summary_layout = self._card("Summary")
+        summary_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.summary_label = QLabel()
         self.summary_label.setObjectName("SummaryPanel")
         self.summary_label.setWordWrap(True)
         self.summary_label.setTextFormat(Qt.RichText)
         self.summary_label.setText(
-            "<p style='color:#64748b'>Import files to see the action summary.</p>"
+            "<p style='color:#64748b'>Import files and select a branch.</p>"
         )
         summary_scroll = QScrollArea()
         summary_scroll.setWidgetResizable(True)
         summary_scroll.setFrameShape(QFrame.NoFrame)
         summary_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        summary_scroll.setMaximumHeight(110)
+        summary_scroll.setMaximumHeight(160)
         summary_scroll.setWidget(self.summary_label)
-        review_layout.addWidget(summary_scroll)
+        summary_layout.addWidget(summary_scroll)
+        right_layout.addWidget(summary_card)
+
+        table_card, table_layout = self._card("Action items")
+        table_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        table_layout.setContentsMargins(12, 12, 12, 12)
 
         self.table = QTableWidget()
         self.table.setAlternatingRowColors(True)
@@ -286,7 +283,7 @@ class MainWindow(QMainWindow):
         self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        review_layout.addWidget(self.table, 1)
+        table_layout.addWidget(self.table, 1)
 
         self.empty_label = QLabel(
             "No action items yet.\n"
@@ -296,14 +293,14 @@ class MainWindow(QMainWindow):
         self.empty_label.setAlignment(Qt.AlignCenter)
         self.empty_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.empty_label.hide()
-        review_layout.addWidget(self.empty_label, 1)
+        table_layout.addWidget(self.empty_label, 1)
 
-        bottom_layout.addWidget(review_card, 1)
+        right_layout.addWidget(table_card, 1)  # table fills remaining height
 
-        splitter.addWidget(top_pane)
-        splitter.addWidget(bottom_pane)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
+        splitter.addWidget(left_scroll)
+        splitter.addWidget(right_pane)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
         root.addWidget(splitter, 1)
 
         self._splitter = splitter
@@ -313,8 +310,8 @@ class MainWindow(QMainWindow):
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         if not self._split_sized and hasattr(self, "_splitter"):
-            h = max(self.height() - 72, 420)
-            self._splitter.setSizes([int(h * 0.35), int(h * 0.65)])
+            w = max(self.width() - 48, 900)
+            self._splitter.setSizes([int(w * 0.34), int(w * 0.66)])
             self._split_sized = True
 
     def _browse_files(self) -> None:
