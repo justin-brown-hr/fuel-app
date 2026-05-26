@@ -1,8 +1,8 @@
 # Fuel Reconcile
 
-Windows desktop app (Python) to reconcile fuel usage across three monthly files:
+Windows desktop app (Python) to reconcile fuel usage across monthly files:
 
-1. **Fuel statement** — Farmlands or Mobil PDF (or Excel)
+1. **Fuel statement(s)** — Farmlands and/or Mobil PDFs (or Excel)
 2. **Branch litres** — Excel workbook with one sheet per branch
 3. **Cars+ statement** — Excel export (reference; billing in dollars)
 
@@ -40,7 +40,7 @@ Then run `python3 run.py` again (needs a display, e.g. `DISPLAY=:0`).
 
 ```bash
 python3 run.py --cli \
-  --fuel "docs/Farmlands Statement April.PDF" \
+  --fuel "docs/Farmlands Statement April.PDF" "docs/Mobile - Taupo.pdf" \
   --branch "docs/branch litres.xlsx" \
   --cars "docs/cars+ statement.xlsx" \
   --branch-name Whangarei \
@@ -50,7 +50,7 @@ python3 run.py --cli \
 
 Or with sample files from `docs/`:
 
-1. Drop `Farmlands Statement April.PDF`, `branch litres.xlsx`, and `cars+ statement.xlsx`
+1. Drop `Farmlands Statement April.PDF`, `Mobile - Taupo.pdf`, `branch litres.xlsx`, and `cars+ statement.xlsx`
 2. Click **Import & reconcile**
 3. Choose a branch and review unmatched litres
 4. Click **Export PDF**

@@ -8,16 +8,16 @@ Import your monthly files and compare **fuel card litres** to **branch tab litre
 
 | File | Description |
 |------|-------------|
-| Fuel statement | Farmlands or Mobil PDF (monthly card statement with litres) |
+| Fuel statement(s) | Farmlands and/or Mobil PDFs (monthly card statements with litres). Import all statement PDFs for the month, e.g. Farmlands plus `Mobile - Taupo.pdf`. |
 | Branch litres | Excel workbook with one sheet per branch (e.g. Taupo, Kerikeri, Whangarei) |
 | Cars+ statement | Excel export from Cars+ (recommended for billing check) |
 
-**Fuel statement** and **branch litres** are required for reconciliation.
+At least one **fuel statement** and **branch litres** are required for reconciliation.
 
 ## Steps
 
 1. Open **Fuel Reconcile** (`FuelReconcile.exe` on Windows).
-2. Drag all three files onto the drop zone (or **Browse files**).
+2. Drag all monthly files onto the drop zone (or **Browse files**): all fuel statements, branch litres, and Cars+.
 3. Click **Import & reconcile**.
 4. Select a **branch** from the dropdown.
 5. Review the action-items table (Type, Date, Litres, RA, Action).
@@ -27,7 +27,7 @@ Import your monthly files and compare **fuel card litres** to **branch tab litre
 
 1. **Fuel card not on branch tab** — On Farmlands/Mobil but not on the branch spreadsheet (incl. NONREV check).
 2. **Branch tab without card** — On the spreadsheet but no matching card line.
-3. **Cars+ billing** — Operational fill not charged on Cars+ at that branch’s location (Whangarei: WHN50/60 & WZZ52; Whanganui: WNU50/60 — separate towns).
+3. **Cars+ billing** — Operational fill not charged on Cars+ at confirmed client locations only.
 
 Summary at the top shows how many card lines matched; tables list follow-ups only.
 

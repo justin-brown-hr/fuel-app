@@ -23,7 +23,8 @@ def cars_section_empty_note(report: dict[str, Any]) -> str:
         return (
             "Cars+ file was not loaded for this import. "
             "Copy cars+ statement.xlsx to Desktop (not open in OneDrive preview), "
-            "re-import all three files, and check the status line for errors."
+            "re-import branch litres, Cars+, and all fuel statement files, "
+            "then check the status line for errors."
         )
     if at_branch == 0:
         return (

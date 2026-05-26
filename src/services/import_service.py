@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Iterable
 
 from src.db.database import Database
 from src.importers import import_branch_litres, import_cars_plus, import_fuel_statement
@@ -27,7 +28,7 @@ class ImportService:
 
     def process_files(
         self,
-        fuel_statement: Path | None,
+        fuel_statement: Path | Iterable[Path] | None,
         branch_litres: Path | None,
         cars_plus: Path | None,
         label: str = "Import",
@@ -55,13 +56,23 @@ class ImportService:
         except Exception as e:
             result.errors.append(f"Cars+: {e}")
 
-        try:
-            if fuel_statement and fuel_statement.exists():
-                statement_rows = import_fuel_statement(open_data_file(fuel_statement))
-                self.db.save_fuel_statement(batch_id, statement_rows)
-                result.fuel_statement_count = len(statement_rows)
-        except Exception as e:
-            result.errors.append(f"Fuel statement: {e}")
+        fuel_files: list[Path] = []
+        if isinstance(fuel_statement, Path):
+            fuel_files = [fuel_statement]
+        elif fuel_statement:
+            fuel_files = list(fuel_statement)
+
+        for fuel_file in fuel_files:
+            try:
+                if fuel_file and fuel_file.exists():
+                    statement_rows.extend(
+                        import_fuel_statement(open_data_file(fuel_file))
+                    )
+            except Exception as e:
+                result.errors.append(f"Fuel statement {fuel_file.name}: {e}")
+        if statement_rows:
+            self.db.save_fuel_statement(batch_id, statement_rows)
+            result.fuel_statement_count = len(statement_rows)
 
         if branch_rows and statement_rows:
             recon = reconcile(branch_rows, statement_rows, cars_rows or None)

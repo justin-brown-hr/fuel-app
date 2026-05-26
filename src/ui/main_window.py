@@ -49,7 +49,7 @@ class DropZone(QFrame):
         self.title.setObjectName("DropZoneTitle")
         self.title.setAlignment(Qt.AlignCenter)
         self.hint = QLabel(
-            "Fuel statement (PDF) · Branch litres (Excel) · Cars+ (Excel)"
+            "Fuel statements (PDF/Excel) · Branch litres (Excel) · Cars+ (Excel)"
         )
         self.hint.setAlignment(Qt.AlignCenter)
         self.hint.setWordWrap(True)
@@ -67,7 +67,7 @@ class DropZone(QFrame):
     def _set_idle_text(self) -> None:
         self.title.setText("Drop monthly files here")
         self.hint.setText(
-            "Fuel statement (PDF) · Branch litres (Excel) · Cars+ (Excel)"
+            "Fuel statements (PDF/Excel) · Branch litres (Excel) · Cars+ (Excel)"
         )
         self.hint.show()
         self.files.hide()
@@ -209,7 +209,9 @@ class MainWindow(QMainWindow):
         import_layout.addLayout(btn_row)
         left_layout.addWidget(import_card)
 
-        self.status_label = QLabel("Ready — add your three files, then import.")
+        self.status_label = QLabel(
+            "Ready — add branch litres, Cars+, and all fuel statement files."
+        )
         self.status_label.setObjectName("StatusPill")
         self.status_label.setWordWrap(True)
         left_layout.addWidget(self.status_label)
@@ -331,20 +333,25 @@ class MainWindow(QMainWindow):
             self.drop_zone.dropped_paths = [Path(p) for p in paths]
             self.drop_zone._show_files(self.drop_zone.dropped_paths)
 
-    def _assign_files(self, paths: list[Path]) -> tuple[Path | None, Path | None, Path | None]:
-        fuel, branch, cars = None, None, None
+    def _assign_files(
+        self, paths: list[Path]
+    ) -> tuple[list[Path], Path | None, Path | None]:
+        fuel: list[Path] = []
+        branch, cars = None, None
         for p in paths:
             kind = _classify_file(p)
-            if kind == "fuel" and fuel is None:
-                fuel = p
+            if kind == "fuel":
+                fuel.append(p)
             elif kind == "branch" and branch is None:
                 branch = p
             elif kind == "cars" and cars is None:
                 cars = p
-        remaining = [p for p in paths if p not in (fuel, branch, cars)]
+        assigned = set(fuel)
+        assigned.update(p for p in (branch, cars) if p is not None)
+        remaining = [p for p in paths if p not in assigned]
         for p in remaining:
-            if p.suffix.lower() == ".pdf" and fuel is None:
-                fuel = p
+            if p.suffix.lower() == ".pdf":
+                fuel.append(p)
             elif "litre" in p.name.lower() and branch is None:
                 branch = p
             elif cars is None and p.suffix.lower() in (".xlsx", ".xls"):
@@ -366,13 +373,13 @@ class MainWindow(QMainWindow):
         if not cars:
             missing.append("cars+ statement (.xlsx)")
         if not fuel:
-            missing.append("fuel statement (.pdf/.xlsx)")
+            missing.append("fuel statement(s) (.pdf/.xlsx)")
         if missing:
             QMessageBox.warning(
                 self,
                 "Missing files",
                 "Could not identify:\n• " + "\n• ".join(missing)
-                + "\n\nRename files or drop all three together.",
+                + "\n\nRename files or drop all files together.",
             )
             if not branch or not cars:
                 return

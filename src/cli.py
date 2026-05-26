@@ -14,7 +14,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Fuel Reconcile — import and compare branch litres vs fuel statement"
     )
-    p.add_argument("--fuel", type=Path, help="Fuel statement PDF or Excel")
+    p.add_argument(
+        "--fuel",
+        type=Path,
+        nargs="+",
+        help="Fuel statement PDF/Excel file(s). Include Farmlands and Mobil PDFs.",
+    )
     p.add_argument("--branch", type=Path, help="Branch litres .xlsx")
     p.add_argument("--cars", type=Path, help="Cars+ statement .xlsx (optional)")
     p.add_argument(
@@ -60,6 +65,7 @@ def run_cli(argv: list[str] | None = None) -> int:
         print("Example:", file=sys.stderr)
         print(
             "  python3 run.py --cli --fuel docs/'Farmlands Statement April.PDF' "
+            "docs/'Mobile - Taupo.pdf' "
             "--branch 'docs/branch litres.xlsx' --cars 'docs/cars+ statement.xlsx' "
             "--branch-name Whangarei",
             file=sys.stderr,

@@ -489,12 +489,10 @@ class Database:
                 """
                 SELECT DISTINCT branch FROM branch_litres WHERE batch_id = ?
                 UNION
-                SELECT DISTINCT branch FROM cars_plus WHERE batch_id = ?
-                UNION
                 SELECT DISTINCT branch FROM fuel_statement WHERE batch_id = ?
                 ORDER BY branch
                 """,
-                (batch_id, batch_id, batch_id),
+                (batch_id, batch_id),
             ).fetchall()
         return [r[0] for r in rows if r[0]]
 
