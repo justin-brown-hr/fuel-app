@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.config import branch_from_loc
+from src.config import branch_from_cars_locations
 from src.models import CarsPlusRow
 
 from .utils import normalize_ra, open_data_file, parse_excel_date, parse_time, safe_float
@@ -66,7 +66,10 @@ def import_cars_plus(path: Path) -> list[CarsPlusRow]:
         loc = str(r.get(loc_out, "") if loc_out else "").strip()
         if not loc or loc.lower().startswith("ra loc"):
             continue
-        branch = branch_from_loc(loc) or "Other"
+        loc_in_value = str(r.get(loc_in, loc) if loc_in else loc).strip()
+        branch = branch_from_cars_locations(loc, loc_in_value)
+        if branch is None:
+            continue
         ra = normalize_ra(r.get(ra_col) if ra_col else "")
         if not ra:
             continue
@@ -83,7 +86,7 @@ def import_cars_plus(path: Path) -> list[CarsPlusRow]:
             CarsPlusRow(
                 branch=branch,
                 ra_loc_out=loc,
-                ra_loc_in=str(r.get(loc_in, loc) if loc_in else loc).strip(),
+                ra_loc_in=loc_in_value,
                 ra_number=ra,
                 transaction_date=tx_date,
                 time=parse_time(r.get(time_col) if time_col else None) or "",

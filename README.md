@@ -106,7 +106,7 @@ docs/            # Client sample files
 
 1. **Stage 1** — Branch tab **including NONREV** vs fuel statement (litres). NONREV rows (e.g. 8.89L on 9 Apr) match statement lines that were wrongly flagged before.
 2. **Stage 2** — **Operational** branch tab only (NONREV excluded) vs fuel statement — use for “missing on WHN tab” follow-up.
-3. **Cars+** — Branch tab **RA numbers** vs Cars+ fuel charges on the same date, using that branch’s **RA Loc Out** codes (Whangarei: WHN & WZZ; Whanganui: WNU — not mixed).
+3. **Cars+** — Branch tab **RA numbers** vs Cars+ fuel charges within the date window, using only confirmed client locations on **RA Loc Out or RA Loc In**: Kerikeri, Whangarei, Rotorua, Taupo, Whanganui/Wanganui, and Mount Maunganui/Tauranga (Z Hewletts Rd). National locations such as Auckland/Wellington are ignored.
 
 Dates may differ between sheet and statement; matching is primarily by **litres** within the branch.
 

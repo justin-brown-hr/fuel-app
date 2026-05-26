@@ -95,7 +95,8 @@ def attention_summary_bullets(report: dict[str, Any]) -> list[str]:
         ),
         (
             f"<b>{n_cars}</b> operational fill(s) — no Cars+ RA match within "
-            f"<b>{CARS_DATE_WINDOW_DAYS} days</b> ({loc} or any location)"
+            f"<b>{CARS_DATE_WINDOW_DAYS} days</b> "
+            f"({loc} or another confirmed client location)"
         ),
         (
             f"<b>{n_cred}</b> credit reversal(s) on statement "

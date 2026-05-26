@@ -37,7 +37,7 @@ def _cars_billing_found(
 ) -> tuple[bool, str]:
     """
     Tier 1: RA + date at branch loc (Out or In).
-    Tier 2: RA + date anywhere on Cars+ (other depot / cost centre).
+    Tier 2: RA + date at another confirmed client Cars+ location.
     """
     found, _ = _best_ra_date_match(row, branch_cars)
     if found:
@@ -57,7 +57,8 @@ def reconcile_cars_plus(
 ) -> list[UnmatchedLitres]:
     """
     Flag operational branch rows with no Cars+ fuel charge for the RA within
-    CARS_DATE_WINDOW_DAYS (branch location first, then any Cars+ location).
+    CARS_DATE_WINDOW_DAYS. Cars+ rows are imported only for confirmed client
+    locations, so national locations like Auckland/Wellington are ignored.
     """
     loc_label = cars_loc_label(branch)
     branch_items = [
@@ -75,7 +76,7 @@ def reconcile_cars_plus(
 
     unmatched: list[UnmatchedLitres] = []
     for row in branch_items:
-        found, tier = _cars_billing_found(row, branch_cars, cars_rows)
+        found, _ = _cars_billing_found(row, branch_cars, cars_rows)
         if not found:
             unmatched.append(
                 UnmatchedLitres(
@@ -88,7 +89,7 @@ def reconcile_cars_plus(
                     reason=(
                         f"Not billed on Cars+ for RA {row.ra_number} "
                         f"(within {CARS_DATE_WINDOW_DAYS} days at {loc_label} "
-                        f"or any Cars+ location)"
+                        f"or another confirmed client location)"
                     ),
                     source="cars_plus",
                     stage="cars_plus",

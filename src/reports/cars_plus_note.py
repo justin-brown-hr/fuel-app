@@ -28,13 +28,12 @@ def cars_section_empty_note(report: dict[str, Any]) -> str:
     if at_branch == 0:
         return (
             f"No Cars+ rows with {cars_loc_label(branch)} location codes in the export. "
-            "Check the RA Loc Out column matches your branch, or send a sample file "
-            "to update the importer."
+            "Check RA Loc Out/RA Loc In matches one of the confirmed client locations."
         )
     if unbilled == 0:
         return (
             f"Cars+ loaded ({at_branch} charges at {cars_loc_label(branch)}). "
             "No gaps — every operational branch-tab fill has a matching Cars+ "
-            "fuel charge on the same date and RA."
+            "fuel charge for the RA within the date window."
         )
     return ""

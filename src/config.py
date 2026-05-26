@@ -34,23 +34,32 @@ DOCS_DIR = PROJECT_ROOT / "docs"
 DATA_DIR = user_data_dir() if _is_frozen() else (app_root() / "data")
 DB_PATH = DATA_DIR / "fuel_app.db"
 
+# Client-approved branches only. Other national locations must not appear in
+# branch lists or reports for this app.
+CLIENT_BRANCHES: tuple[str, ...] = (
+    "Kerikeri",
+    "Whangarei",
+    "Rotorua",
+    "Taupo",
+    "Whanganui",
+    "Tauranga",
+)
+
+
 # Location code prefix -> branch name (from branch litres sheets + Cars+ codes)
 LOC_TO_BRANCH: dict[str, str] = {
     "TUO": "Taupo",
+    "TUZ": "Taupo",
     "KKE": "Kerikeri",
     "KKZ": "Kerikeri",
     "WHN": "Whangarei",
     "WZZ": "Whangarei",
     "WNU": "Whanganui",
-    "WHK": "Whakatane",
+    "WJZ": "Whanganui",
     "RTR": "Rotorua",
+    "RTZ": "Rotorua",
     "TRG": "Tauranga",
-    "NPY": "Napier",
-    "AUC": "Auckland",
-    "HML": "Hamilton",
-    "PMR": "Palmerston North",
-    "WEL": "Wellington",
-    "FPO": "Other",
+    "TRZ": "Tauranga",
 }
 
 
@@ -60,7 +69,6 @@ BRANCH_TAB_CODE: dict[str, str] = {
     "Kerikeri": "KKE",
     "Whangarei": "WHN",
     "Whanganui": "WNU",
-    "Whakatane": "WHK",
     "Rotorua": "RTR",
     "Tauranga": "TRG",
 }
@@ -77,20 +85,19 @@ def branch_from_loc(loc: str) -> str | None:
     return LOC_TO_BRANCH.get(prefix)
 
 
-# Cars+ RA Loc Out prefixes that count as "this branch" for billing checks
+def branch_from_cars_locations(ra_loc_out: str, ra_loc_in: str = "") -> str | None:
+    """Return a client branch if either Cars+ location belongs to one."""
+    return branch_from_loc(ra_loc_out) or branch_from_loc(ra_loc_in)
+
+
+# Cars+ location prefixes that count as client branch locations.
 BRANCH_CARS_LOC_PREFIXES: dict[str, tuple[str, ...]] = {
-    "Taupo": ("TUO",),
+    "Taupo": ("TUO", "TUZ"),
     "Kerikeri": ("KKE", "KKZ"),
     "Whangarei": ("WHN", "WZZ"),
-    "Whanganui": ("WNU",),
-    "Whakatane": ("WHK",),
-    "Rotorua": ("RTR",),
-    "Tauranga": ("TRG",),
-    "Napier": ("NPY",),
-    "Auckland": ("AUC",),
-    "Hamilton": ("HML",),
-    "Wellington": ("WEL",),
-    "Palmerston North": ("PMR",),
+    "Whanganui": ("WNU", "WJZ"),
+    "Rotorua": ("RTR", "RTZ"),
+    "Tauranga": ("TRG", "TRZ"),
 }
 
 
@@ -101,9 +108,11 @@ def cars_loc_prefixes(branch: str) -> tuple[str, ...]:
 # Plain-language labels for PDF / UI (not raw codes only)
 BRANCH_CARS_LOC_LABEL: dict[str, str] = {
     "Whangarei": "Whangarei (Cars+ WHN50/60 & WZZ52)",
-    "Whanganui": "Whanganui (Cars+ WNU50/60)",
-    "Taupo": "Taupo (Cars+ code TUO)",
+    "Whanganui": "Whanganui/Wanganui (Cars+ WNU/WJZ)",
+    "Taupo": "Taupo (Cars+ TUO/TUZ)",
     "Kerikeri": "Kerikeri (Cars+ codes KKE & KKZ)",
+    "Rotorua": "Rotorua Te Ngae (Cars+ RTR/RTZ)",
+    "Tauranga": "Mount Maunganui / Tauranga - Z Hewletts Rd (Cars+ TRG/TRZ)",
 }
 
 
@@ -121,11 +130,11 @@ def cars_loc_help_text(branch: str) -> str:
         )
     if branch == "Whanganui":
         return (
-            "Whanganui on Cars+: WNU50, WNU60. "
+            "Whanganui/Wanganui on Cars+: WNU/WJZ. "
             "WHN/WZZ codes are Whangarei, not Whanganui."
         )
     prefixes = ", ".join(cars_loc_prefixes(branch))
-    return f"Cars+ RA Loc Out must start with: {prefixes} for this branch."
+    return f"Cars+ RA Loc Out or In must start with: {prefixes} for this branch."
 
 
 def _loc_matches_branch(loc: str, branch: str) -> bool:

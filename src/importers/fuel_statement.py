@@ -4,6 +4,7 @@ from pathlib import Path
 import pdfplumber
 
 from src.models import FuelStatementRow
+from src.config import CLIENT_BRANCHES
 
 from .utils import parse_excel_date, safe_float
 
@@ -33,15 +34,19 @@ _FARMLANDS_LITRES = re.compile(
 
 _BRANCH_FROM_SUPPLIER = {
     "kerikeri": "Kerikeri",
+    "whangārei": "Whangarei",
     "whangarei": "Whangarei",
+    "wanganui": "Whanganui",
     "whanganui": "Whanganui",
+    "taupō": "Taupo",
     "taupo": "Taupo",
+    "te ngae": "Rotorua",
+    "te ngāe": "Rotorua",
     "rotorua": "Rotorua",
+    "mt maunganui": "Tauranga",
+    "mount maunganui": "Tauranga",
+    "hewletts": "Tauranga",
     "tauranga": "Tauranga",
-    "napier": "Napier",
-    "auckland": "Auckland",
-    "hamilton": "Hamilton",
-    "wellington": "Wellington",
 }
 
 
@@ -54,6 +59,10 @@ def _branch_from_text(text: str) -> str:
     if m:
         return m.group(1).title()
     return "Other"
+
+
+def _client_rows(rows: list[FuelStatementRow]) -> list[FuelStatementRow]:
+    return [r for r in rows if r.branch in CLIENT_BRANCHES]
 
 
 def _parse_farmlands(text: str) -> list[FuelStatementRow]:
@@ -164,7 +173,7 @@ def import_fuel_statement(path: Path) -> list[FuelStatementRow]:
                     card_or_invoice="",
                 )
             )
-        return rows
+        return _client_rows(rows)
 
     text_parts: list[str] = []
     with pdfplumber.open(path) as pdf:
@@ -175,7 +184,7 @@ def import_fuel_statement(path: Path) -> list[FuelStatementRow]:
     full_text = "\n".join(text_parts)
     fmt = _detect_format(full_text)
     if fmt == "farmlands":
-        return _parse_farmlands(full_text)
+        return _client_rows(_parse_farmlands(full_text))
     if fmt == "mobil":
-        return _parse_mobil(full_text)
-    return _parse_farmlands(full_text) + _parse_mobil(full_text)
+        return _client_rows(_parse_mobil(full_text))
+    return _client_rows(_parse_farmlands(full_text) + _parse_mobil(full_text))
