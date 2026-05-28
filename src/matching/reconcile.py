@@ -140,19 +140,16 @@ def _litres_match(a: float, b: float) -> bool:
 
 def _date_proximity_score(branch_date, statement_date) -> int:
     """
-    Prefer branch tab on or after the card date (late data entry is common).
-    Penalise branch rows dated well before the statement line.
+    Prefer the closest calendar date within the allowed window (card before or
+    after tab entry). Same litres on a later-dated tab row must not steal a
+    statement line from the correct earlier tab row.
     """
-    if branch_date == statement_date:
+    days = abs((branch_date - statement_date).days)
+    if days > MAX_BRANCH_AFTER_STATEMENT_DAYS:
+        return -1
+    if days == 0:
         return 100
-    delta = (branch_date - statement_date).days
-    if 0 < delta <= MAX_BRANCH_AFTER_STATEMENT_DAYS:
-        return 95 - delta * 3
-    if -2 <= delta < 0:
-        return 35 + delta * 8
-    if delta < -2:
-        return max(0, 12 + delta)
-    return max(0, 25 - min(abs(delta), 25))
+    return max(10, 100 - days * 5)
 
 
 def _match_score(branch: BranchLitresRow, statement: FuelStatementRow) -> int:
@@ -164,7 +161,10 @@ def _match_score(branch: BranchLitresRow, statement: FuelStatementRow) -> int:
     stmt_ra = normalize_ra(statement.ra_number or "")
     if stmt_ra and bra and not ra_matches(bra, stmt_ra):
         return -1
-    return 1000 + _date_proximity_score(branch.transaction_date, statement.transaction_date)
+    prox = _date_proximity_score(branch.transaction_date, statement.transaction_date)
+    if prox < 0:
+        return -1
+    return 1000 + prox
 
 
 def _match_branch_pool(
