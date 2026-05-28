@@ -46,7 +46,8 @@ def _print_rows(title: str, rows: list[dict], cols: tuple[str, ...]) -> None:
         for r in rows:
             print(
                 f"{r['transaction_date']:<12} {r['litres']:>7.2f}L  "
-                f"{(r.get('fuel_type') or ''):<8}  On card; not on tab"
+                f"{(r.get('fuel_type') or ''):<8}  "
+                f"{(r.get('reason') or 'On card; not on tab')[:40]}"
             )
     elif "ra" in cols:
         print(hdr + f"{'RA #':<12}  Action")

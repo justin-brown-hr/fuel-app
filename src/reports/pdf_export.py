@@ -23,6 +23,7 @@ from .attention import (
     extract_attention_items,
 )
 from .cars_plus_note import cars_section_empty_note, cars_section_title
+from .fuel_card_labels import card_not_on_tab_action, tab_not_on_card_action
 
 
 def _fmt_date(iso: str) -> str:
@@ -121,25 +122,27 @@ def _pdf_cover_section(report: dict[str, Any], styles: dict) -> list:
     return story
 
 
-def _stmt_rows(rows: list[dict]) -> list[list]:
+def _stmt_rows(report: dict[str, Any], rows: list[dict]) -> list[list]:
+    action = card_not_on_tab_action(report)
     return [
         [
             _fmt_date(r["transaction_date"]),
             f"{r['litres']:.2f}L",
             r.get("fuel_type") or "",
-            "On fuel card; not on branch tab",
+            action,
         ]
         for r in rows
     ]
 
 
-def _branch_rows(rows: list[dict]) -> list[list]:
+def _branch_rows(report: dict[str, Any], rows: list[dict]) -> list[list]:
+    action = tab_not_on_card_action(report)
     return [
         [
             _fmt_date(r["transaction_date"]),
             f"{r['litres']:.2f}L",
             r.get("ra_number") or "",
-            "On branch tab; no matching card line",
+            action,
         ]
         for r in rows
     ]
@@ -206,14 +209,14 @@ def export_branch_pdf(report: dict[str, Any], output_path: Path) -> None:
     add_section(
         f"1. Fuel card not on branch tab ({len(card)})",
         ["Date", "Litres", "Fuel type", "Action"],
-        _stmt_rows(card),
+        _stmt_rows(report, card),
     )
 
     tab = att["tab_not_on_card"]
     add_section(
         f"2. Branch tab without matching card line ({len(tab)})",
         ["Date", "Litres", "RA #", "Action"],
-        _branch_rows(tab),
+        _branch_rows(report, tab),
     )
 
     cars = att["cars_not_charged"]

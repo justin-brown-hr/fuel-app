@@ -6,6 +6,12 @@ from src.attention_keys import attention_item_key
 from src.config import cars_loc_label
 from src.matching.cars_reconcile import CARS_DATE_WINDOW_DAYS
 from src.reports.cars_plus_note import cars_section_empty_note
+from src.reports.fuel_card_labels import (
+    card_not_on_tab_action,
+    card_not_on_tab_summary_text,
+    tab_not_on_card_action,
+    tab_not_on_card_summary_text,
+)
 
 
 def _is_credit_row(row: dict) -> bool:
@@ -86,13 +92,8 @@ def attention_summary_bullets(report: dict[str, Any]) -> list[str]:
             f"<b>{matched}</b> of <b>{total}</b> card fill-ups match the branch tab "
             f"(incl. NONREV). Tables below list only follow-ups."
         ),
-        (
-            f"<b>{n_card}</b> fuel card line(s) — on Farmlands, not on branch tab "
-            f"(add to spreadsheet or investigate)"
-        ),
-        (
-            f"<b>{n_tab}</b> branch tab row(s) — on branch sheet, no matching card line"
-        ),
+        card_not_on_tab_summary_text(report, n_card),
+        tab_not_on_card_summary_text(report, n_tab),
         (
             f"<b>{n_cars}</b> operational fill(s) — no Cars+ RA match within "
             f"<b>{CARS_DATE_WINDOW_DAYS} days</b> "
@@ -147,7 +148,7 @@ def attention_rows_for_table(report: dict[str, Any]) -> list[dict[str, Any]]:
                 "transaction_date": r["transaction_date"],
                 "litres": r["litres"],
                 "detail": r.get("fuel_type") or "",
-                "action": "Add to branch tab or investigate",
+                "action": card_not_on_tab_action(report) + " — add to tab or investigate",
             }
         )
     for r in att["tab_not_on_card"]:
@@ -158,7 +159,7 @@ def attention_rows_for_table(report: dict[str, Any]) -> list[dict[str, Any]]:
                 "transaction_date": r["transaction_date"],
                 "litres": r["litres"],
                 "detail": r.get("ra_number") or "",
-                "action": "Confirm card line or correct tab entry",
+                "action": tab_not_on_card_action(report) + " — confirm or correct tab",
             }
         )
     for r in att["cars_not_charged"]:
