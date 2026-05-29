@@ -8,21 +8,25 @@ if (-not (Test-Path "app\run.py")) {
     throw "app\run.py not found. Run from the fuel_app repo root (folder that contains app\ and fuel_reconcile.spec)."
 }
 
-if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-    throw "Python not found. Install Python 3.10+ and add it to PATH."
+if (Get-Command python -ErrorAction SilentlyContinue) {
+    $bootstrap = @{ Cmd = "python"; Args = @() }
+} elseif (Get-Command py -ErrorAction SilentlyContinue) {
+    $bootstrap = @{ Cmd = "py"; Args = @("-3") }
+} else {
+    throw "Python not found. Install Python 3.10+ and tick Add to PATH."
 }
 
-python --version
+& $bootstrap.Cmd @bootstrap.Args --version
 
 if (-not (Test-Path ".venv\Scripts\python.exe")) {
-    python -m venv .venv
+    & $bootstrap.Cmd @bootstrap.Args -m venv .venv
 }
-& .\.venv\Scripts\Activate.ps1
+$vpy = Join-Path (Get-Location) ".venv\Scripts\python.exe"
 
-python -m pip install --upgrade pip
-pip install -r requirements.txt -r requirements-build.txt
+& $vpy -m pip install --upgrade pip
+& $vpy -m pip install -r requirements.txt -r requirements-build.txt
 
-pyinstaller fuel_reconcile.spec --noconfirm --clean
+& $vpy -m PyInstaller fuel_reconcile.spec --noconfirm --clean
 
 $exe = Join-Path (Get-Location) "dist\FuelReconcile.exe"
 if (-not (Test-Path $exe)) {

@@ -1,0 +1,84 @@
+================================================================================
+  HOW TO BUILD FuelReconcile.exe ON WINDOWS
+================================================================================
+
+METHOD 1 — Double-click (easiest)
+---------------------------------
+1. Open folder:  fuel_app\build\windows\
+2. Double-click:  build.bat
+3. A black window stays open. Wait 5-15 minutes.
+4. Success:  fuel_app\dist\FuelReconcile.exe
+
+If the window closes instantly or says BUILD FAILED, read the log:
+   fuel_app\build\windows\build.log
+
+
+METHOD 2 — Command Prompt (if double-click does nothing)
+--------------------------------------------------------
+1. Press Win key, type:  cmd
+2. Open "Command Prompt"
+3. Paste these lines ONE AT A TIME (change C:\path\to\fuel_app to your folder):
+
+   cd /d C:\path\to\fuel_app
+   python --version
+   python -m venv .venv
+   .venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-build.txt
+   .venv\Scripts\python.exe -m PyInstaller fuel_reconcile.spec --noconfirm --clean
+
+4. Check:  dir dist\FuelReconcile.exe
+
+
+METHOD 3 — PowerShell
+---------------------
+1. Right-click Start → Windows PowerShell
+2. Run:
+
+   cd C:\path\to\fuel_app
+   Set-ExecutionPolicy -Scope Process Bypass
+   .\build\windows\build.ps1
+
+
+================================================================================
+  "CAN'T RUN" build.bat — FIXES
+================================================================================
+
+Problem: Double-click does nothing
+  → Use METHOD 2 (Command Prompt) instead.
+
+Problem: Window flashes and closes
+  → Open build.log in build\windows\
+  → Or use updated build.bat (uses cmd /k to stay open)
+
+Problem: "Python is not recognized"
+  → Install Python from https://www.python.org/downloads/
+  → First screen: tick "Add python.exe to PATH"
+  → Close ALL Command Prompt windows, open a NEW one
+  → Test:  python --version
+
+Problem: "python" fails but Python is installed
+  → Try:  py -3 --version
+  → If that works, use METHOD 2 with  py -3  instead of  python
+
+Problem: Downloaded zip — script blocked
+  → Right-click the fuel_app folder → Properties
+  → If you see "Unblock", tick it → Apply
+  → Or right-click build.bat → Properties → Unblock
+
+Problem: SmartScreen / antivirus blocked
+  → Click "More info" → "Run anyway" if Windows asks
+  → Or allow the folder in your antivirus
+
+Problem: Wrong folder
+  → You must be in fuel_app (contains app\, build\, fuel_reconcile.spec)
+  → NOT inside app\ only
+
+
+================================================================================
+  AFTER BUILD
+================================================================================
+  dist\FuelReconcile.exe          — send this to client
+  package-for-client.bat          — makes FuelReconcile-Client.zip
+
+Client: Extract zip → put exe on Desktop → double-click (not from inside WinRAR)
+
+================================================================================
