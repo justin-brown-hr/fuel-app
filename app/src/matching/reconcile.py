@@ -7,7 +7,7 @@ from src.models import (
     UnmatchedLitres,
 )
 
-from src.config import branch_tab_code
+from src.config import branch_tab_code, sort_client_branches
 from src.importers.utils import normalize_ra
 
 from .cars_reconcile import reconcile_cars_plus
@@ -330,9 +330,10 @@ def reconcile(
     credits_branch, credits_statement = count_credits(branch_rows, statement_rows)
     nonrev_branch = count_nonrev(branch_rows)
 
-    branches = sorted(
-        {r.branch for r in branch_rows} | {r.branch for r in statement_rows}
-    )
+    branch_set = {r.branch for r in branch_rows} | {r.branch for r in statement_rows}
+    if cars_rows:
+        branch_set |= {r.branch for r in cars_rows}
+    branches = sort_client_branches(branch_set)
 
     all_unmatched: list[UnmatchedLitres] = []
     summaries: dict[str, BranchSummary] = {}

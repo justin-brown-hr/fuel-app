@@ -86,21 +86,53 @@ def _parse_whangarei_sheet(df: pd.DataFrame, branch: str) -> list[BranchLitresRo
     return rows
 
 
-_PARSERS = {
+# Excel tab name (any alias) -> canonical branch name
+SHEET_TO_BRANCH: dict[str, str] = {
+    "Taupo": "Taupo",
+    "Kerikeri": "Kerikeri",
+    "Whangarei": "Whangarei",
+    "Whanganui": "Whanganui",
+    "Wanganui": "Whanganui",
+    "Rotorua": "Rotorua",
+    "Te Ngae": "Rotorua",
+    "Tauranga": "Tauranga",
+    "Mt Maunganui": "Tauranga",
+    "Mount Maunganui": "Tauranga",
+    "Z Hewletts Rd": "Tauranga",
+    "Z Hewletts": "Tauranga",
+}
+
+_BRANCH_PARSERS = {
     "Taupo": _parse_taupo_sheet,
     "Kerikeri": _parse_kerikeri_sheet,
     "Whangarei": _parse_whangarei_sheet,
     "Whanganui": _parse_whangarei_sheet,
+    "Rotorua": _parse_kerikeri_sheet,
+    "Tauranga": _parse_kerikeri_sheet,
 }
+
+
+def _canonical_branch_from_sheet(sheet_name: str) -> str | None:
+    name = sheet_name.strip()
+    if name in _BRANCH_PARSERS:
+        return name
+    if name in SHEET_TO_BRANCH:
+        return SHEET_TO_BRANCH[name]
+    lower = name.lower()
+    for key, branch in SHEET_TO_BRANCH.items():
+        if key.lower() == lower:
+            return branch
+    return None
 
 
 def import_branch_litres(path: Path) -> list[BranchLitresRow]:
     xl = pd.ExcelFile(path)
     all_rows: list[BranchLitresRow] = []
     for sheet in xl.sheet_names:
-        parser = _PARSERS.get(sheet)
-        if parser is None:
+        branch = _canonical_branch_from_sheet(sheet)
+        if branch is None:
             continue
+        parser = _BRANCH_PARSERS[branch]
         df = pd.read_excel(path, sheet_name=sheet, header=None)
-        all_rows.extend(parser(df, sheet))
+        all_rows.extend(parser(df, branch))
     return all_rows

@@ -46,6 +46,12 @@ CLIENT_BRANCHES: tuple[str, ...] = (
 )
 
 
+def sort_client_branches(names: set[str] | list[str]) -> list[str]:
+    """Stable branch dropdown order — only confirmed client locations."""
+    allowed = set(names)
+    return [b for b in CLIENT_BRANCHES if b in allowed]
+
+
 # Location code prefix -> branch name (from branch litres sheets + Cars+ codes)
 LOC_TO_BRANCH: dict[str, str] = {
     "TUO": "Taupo",

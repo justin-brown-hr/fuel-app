@@ -5,7 +5,13 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from src.config import DATA_DIR, DB_PATH, cars_row_at_branch_location
+from src.config import (
+    CLIENT_BRANCHES,
+    DATA_DIR,
+    DB_PATH,
+    cars_row_at_branch_location,
+    sort_client_branches,
+)
 from src.matching.credits import is_credit_litres
 from src.matching.reconcile import BranchSummary
 from src.models import BranchLitresRow, CarsPlusRow, FuelStatementRow, UnmatchedLitres
@@ -484,17 +490,20 @@ class Database:
             )
 
     def get_branches(self, batch_id: int) -> list[str]:
+        """Branches with data in branch tab, fuel statement, or Cars+ (client list only)."""
         with self._connect() as conn:
             rows = conn.execute(
                 """
                 SELECT DISTINCT branch FROM branch_litres WHERE batch_id = ?
                 UNION
                 SELECT DISTINCT branch FROM fuel_statement WHERE batch_id = ?
-                ORDER BY branch
+                UNION
+                SELECT DISTINCT branch FROM cars_plus WHERE batch_id = ?
                 """,
-                (batch_id, batch_id),
+                (batch_id, batch_id, batch_id),
             ).fetchall()
-        return [r[0] for r in rows if r[0]]
+        found = {r[0] for r in rows if r[0] and r[0] in CLIENT_BRANCHES}
+        return sort_client_branches(found)
 
     def get_branch_report(self, batch_id: int, branch: str) -> dict[str, Any]:
         with self._connect() as conn:
