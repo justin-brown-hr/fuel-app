@@ -4,6 +4,10 @@ Set-Location (Join-Path $PSScriptRoot "..\..")
 
 Write-Host "=== Fuel Reconcile - Windows build (single .exe) ===" -ForegroundColor Cyan
 
+if (-not (Test-Path "app\run.py")) {
+    throw "app\run.py not found. Run from the fuel_app repo root (folder that contains app\ and fuel_reconcile.spec)."
+}
+
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     throw "Python not found. Install Python 3.10+ and add it to PATH."
 }

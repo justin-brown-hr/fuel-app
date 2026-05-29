@@ -4,6 +4,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 ROOT = Path(SPECPATH)
+APP = ROOT / "app"
 
 block_cipher = None
 
@@ -30,8 +31,8 @@ for package in (
         pass
 
 a = Analysis(
-    [str(ROOT / "run.py")],
-    pathex=[str(ROOT)],
+    [str(APP / "run.py")],
+    pathex=[str(APP)],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,

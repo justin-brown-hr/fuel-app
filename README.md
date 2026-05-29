@@ -22,10 +22,11 @@ pip install -r requirements.txt
 
 ## Run (development)
 
-**GUI:**
+**GUI** (from the `app` folder):
 
 ```bash
-python3 run.py
+cd app
+PYTHONPATH=. python3 run.py
 ```
 
 **Linux — if Qt fails with `libxcb-cursor.so.0`:**
@@ -39,10 +40,11 @@ Then run `python3 run.py` again (needs a display, e.g. `DISPLAY=:0`).
 **CLI (no GUI)** — useful on servers or when Qt libraries are missing:
 
 ```bash
-python3 run.py --cli \
-  --fuel "docs/Farmlands Statement April.PDF" "docs/Mobile - Taupo.pdf" \
-  --branch "docs/branch litres.xlsx" \
-  --cars "docs/cars+ statement.xlsx" \
+cd app
+PYTHONPATH=. python3 run.py --cli \
+  --fuel "../docs/Farmlands Statement April.PDF" "../docs/Mobile - Taupo.pdf" \
+  --branch "../docs/branch litres.xlsx" \
+  --cars "../docs/cars+ statement.xlsx" \
   --branch-name Whangarei \
   --list-branches \
   --export /tmp/whangarei_report.pdf
@@ -70,9 +72,12 @@ Or with sample files from `docs/`:
 ### Option B — manual commands
 
 ```bat
+cd fuel_app
 pip install -r requirements.txt -r requirements-build.txt
 pyinstaller fuel_reconcile.spec --noconfirm --clean
 ```
+
+Entry script for the build is `app\run.py` (configured in `fuel_reconcile.spec`).
 
 Output: `dist\FuelReconcile.exe` (single file, ~150–350 MB)
 

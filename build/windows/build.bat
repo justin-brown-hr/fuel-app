@@ -5,6 +5,11 @@ cd /d "%~dp0\..\.."
 echo === Fuel Reconcile - Windows build (single .exe) ===
 echo Project: %CD%
 
+if not exist "app\run.py" (
+    echo ERROR: app\run.py not found. Open this repo folder (fuel_app), not app\ only.
+    exit /b 1
+)
+
 where python >nul 2>&1
 if errorlevel 1 (
     echo ERROR: Python not found. Install Python 3.10+ from https://www.python.org/

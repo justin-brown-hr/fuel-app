@@ -20,9 +20,9 @@ docker pull batonogov/pyinstaller-windows:latest
 
 docker run --rm \
   -v "$ROOT:/src" \
-  -e SPECFILE=./fuel_reconcile.spec \
+  -w /src \
   batonogov/pyinstaller-windows:latest \
-  bash -lc "pip install -q -r requirements-build.txt && pyinstaller fuel_reconcile.spec --noconfirm --clean"
+  bash -lc "pip install -q -r requirements.txt -r requirements-build.txt && pyinstaller fuel_reconcile.spec --noconfirm --clean"
 
 EXE="$ROOT/dist/FuelReconcile.exe"
 if [[ ! -f "$EXE" ]]; then
