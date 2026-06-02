@@ -7,6 +7,47 @@ from src.models import BranchLitresRow
 from .utils import normalize_ra, parse_excel_date, parse_time, safe_float
 
 
+def _is_new_simple_format(df: pd.DataFrame) -> bool:
+    """
+    New client format (May): two columns with header row:
+      RA Number | Fuel Litres
+    """
+    if df.shape[1] < 2:
+        return False
+    a = str(df.iloc[0, 0] or "").strip().lower()
+    b = str(df.iloc[0, 1] or "").strip().lower()
+    return a in {"ra number", "ra"} and "litre" in b
+
+
+def _parse_simple_two_col(df: pd.DataFrame, branch: str) -> list[BranchLitresRow]:
+    rows: list[BranchLitresRow] = []
+    # Expect header row at index 0
+    for i in range(1, len(df.index)):
+        ra_raw = str(df.iloc[i, 0] or "").strip()
+        litres = safe_float(df.iloc[i, 1])
+        if not ra_raw and litres is None:
+            continue
+        if litres is None or litres <= 0:
+            continue
+        ra_norm = normalize_ra(ra_raw)
+        upper = ra_raw.upper()
+        is_nonrev = upper.startswith("NR") or "NONREV" in upper
+        rows.append(
+            BranchLitresRow(
+                branch=branch,
+                vehicle_label="",
+                ra_number=("NONREV" if is_nonrev else (ra_norm or ra_raw)),
+                transaction_date=None,
+                litres=litres,
+                time=None,
+                amount=None,
+                day_of_month=None,
+                is_nonrev=is_nonrev,
+            )
+        )
+    return rows
+
+
 def _parse_taupo_sheet(df: pd.DataFrame, branch: str) -> list[BranchLitresRow]:
     rows: list[BranchLitresRow] = []
     for _, r in df.iterrows():
@@ -100,6 +141,8 @@ SHEET_TO_BRANCH: dict[str, str] = {
     "Mount Maunganui": "Tauranga",
     "Z Hewletts Rd": "Tauranga",
     "Z Hewletts": "Tauranga",
+    "New Plymouth": "New Plymouth",
+    "Whakatane": "Whakatane",
 }
 
 _BRANCH_PARSERS = {
@@ -109,6 +152,9 @@ _BRANCH_PARSERS = {
     "Whanganui": _parse_whangarei_sheet,
     "Rotorua": _parse_kerikeri_sheet,
     "Tauranga": _parse_kerikeri_sheet,
+    # Legacy layouts if provided; May format is auto-detected.
+    "New Plymouth": _parse_kerikeri_sheet,
+    "Whakatane": _parse_kerikeri_sheet,
 }
 
 
@@ -132,7 +178,11 @@ def import_branch_litres(path: Path) -> list[BranchLitresRow]:
         branch = _canonical_branch_from_sheet(sheet)
         if branch is None:
             continue
+        # Read once without headers to detect the format.
+        raw = pd.read_excel(path, sheet_name=sheet, header=None)
+        if _is_new_simple_format(raw):
+            all_rows.extend(_parse_simple_two_col(raw, branch))
+            continue
         parser = _BRANCH_PARSERS[branch]
-        df = pd.read_excel(path, sheet_name=sheet, header=None)
-        all_rows.extend(parser(df, branch))
+        all_rows.extend(parser(raw, branch))
     return all_rows

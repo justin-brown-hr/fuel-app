@@ -47,6 +47,10 @@ _BRANCH_FROM_SUPPLIER = {
     "mount maunganui": "Tauranga",
     "hewletts": "Tauranga",
     "tauranga": "Tauranga",
+    "new plymouth": "New Plymouth",
+    "np ": "New Plymouth",
+    "whakatane": "Whakatane",
+    "whk": "Whakatane",
 }
 
 

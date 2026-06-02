@@ -43,6 +43,8 @@ CLIENT_BRANCHES: tuple[str, ...] = (
     "Taupo",
     "Whanganui",
     "Tauranga",
+    "New Plymouth",
+    "Whakatane",
 )
 
 
@@ -66,6 +68,9 @@ LOC_TO_BRANCH: dict[str, str] = {
     "RTZ": "Rotorua",
     "TRG": "Tauranga",
     "TRZ": "Tauranga",
+    "NPY": "New Plymouth",
+    "NYZ": "New Plymouth",
+    "WHK": "Whakatane",
 }
 
 
@@ -77,6 +82,8 @@ BRANCH_TAB_CODE: dict[str, str] = {
     "Whanganui": "WNU",
     "Rotorua": "RTR",
     "Tauranga": "TRG",
+    "New Plymouth": "NPY",
+    "Whakatane": "WHK",
 }
 
 
@@ -93,7 +100,8 @@ def branch_from_loc(loc: str) -> str | None:
 
 def branch_from_cars_locations(ra_loc_out: str, ra_loc_in: str = "") -> str | None:
     """Return a client branch if either Cars+ location belongs to one."""
-    return branch_from_loc(ra_loc_out) or branch_from_loc(ra_loc_in)
+    # Prefer return depot (Loc In) when it exists.
+    return branch_from_loc(ra_loc_in) or branch_from_loc(ra_loc_out)
 
 
 # Cars+ location prefixes that count as client branch locations.
@@ -104,6 +112,8 @@ BRANCH_CARS_LOC_PREFIXES: dict[str, tuple[str, ...]] = {
     "Whanganui": ("WNU", "WJZ"),
     "Rotorua": ("RTR", "RTZ"),
     "Tauranga": ("TRG", "TRZ"),
+    "New Plymouth": ("NPY", "NYZ"),
+    "Whakatane": ("WHK",),
 }
 
 
@@ -119,6 +129,8 @@ BRANCH_CARS_LOC_LABEL: dict[str, str] = {
     "Kerikeri": "Kerikeri (Cars+ codes KKE & KKZ)",
     "Rotorua": "Rotorua Te Ngae (Cars+ RTR/RTZ)",
     "Tauranga": "Mount Maunganui / Tauranga - Z Hewletts Rd (Cars+ TRG/TRZ)",
+    "New Plymouth": "New Plymouth (Cars+ NPY/NYZ)",
+    "Whakatane": "Whakatane (Cars+ WHK)",
 }
 
 

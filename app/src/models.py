@@ -8,7 +8,7 @@ class BranchLitresRow:
     branch: str
     vehicle_label: str
     ra_number: str
-    transaction_date: date
+    transaction_date: Optional[date]
     litres: float
     time: Optional[str] = None
     amount: Optional[float] = None
@@ -47,7 +47,7 @@ class UnmatchedLitres:
     branch: str
     ra_number: str
     vehicle_label: str
-    transaction_date: date
+    transaction_date: Optional[date]
     litres: float
     time: Optional[str]
     reason: str

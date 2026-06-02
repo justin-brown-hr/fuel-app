@@ -155,6 +155,8 @@ def _date_proximity_score(branch_date, statement_date) -> int:
 def _match_score(branch: BranchLitresRow, statement: FuelStatementRow) -> int:
     if branch.branch != statement.branch:
         return -1
+    if not branch.transaction_date:
+        return -1
     if not _litres_match(branch.litres, statement.litres):
         return -1
     bra = normalize_ra(branch.ra_number)
@@ -327,7 +329,8 @@ def reconcile(
     Stage 2: operational branch rows only (excludes NONREV) vs fuel statement.
     Cars+: branch RA vs Cars+ fuel charges (operational RAs only).
     """
-    credits_branch, credits_statement = count_credits(branch_rows, statement_rows)
+    dated_branch_rows = [r for r in branch_rows if r.transaction_date]
+    credits_branch, credits_statement = count_credits(dated_branch_rows, statement_rows)
     nonrev_branch = count_nonrev(branch_rows)
 
     branch_set = {r.branch for r in branch_rows} | {r.branch for r in statement_rows}
@@ -339,12 +342,19 @@ def reconcile(
     summaries: dict[str, BranchSummary] = {}
 
     for branch in branches:
-        u1, s1 = _reconcile_branch_stage(
-            branch, branch_rows, statement_rows, stage="stage1", include_nonrev=True
+        branch_has_dates = any(
+            r.branch == branch and bool(r.transaction_date) for r in branch_rows
         )
-        u2, s2 = _reconcile_branch_stage(
-            branch, branch_rows, statement_rows, stage="stage2", include_nonrev=False
-        )
+        if statement_rows and branch_has_dates:
+            u1, s1 = _reconcile_branch_stage(
+                branch, branch_rows, statement_rows, stage="stage1", include_nonrev=True
+            )
+            u2, s2 = _reconcile_branch_stage(
+                branch, branch_rows, statement_rows, stage="stage2", include_nonrev=False
+            )
+        else:
+            u1, s1 = ([], StageSummary())
+            u2, s2 = ([], StageSummary())
         all_unmatched.extend(u1)
         all_unmatched.extend(u2)
 

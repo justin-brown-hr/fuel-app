@@ -74,8 +74,10 @@ class ImportService:
             self.db.save_fuel_statement(batch_id, statement_rows)
             result.fuel_statement_count = len(statement_rows)
 
-        if branch_rows and statement_rows:
-            recon = reconcile(branch_rows, statement_rows, cars_rows or None)
+        if branch_rows and (statement_rows or cars_rows):
+            # If statement is missing (client waiting for it), still run Cars+ checks
+            # and populate branch dropdown from imported data.
+            recon = reconcile(branch_rows, statement_rows or [], cars_rows or None)
             self.db.save_unmatched(batch_id, recon.unmatched)
             result.unmatched_count = len(recon.unmatched)
             result.credits_skipped_branch = recon.credits_skipped_branch

@@ -18,6 +18,14 @@ def _best_ra_date_match(
     bra = normalize_ra(row.ra_number)
     if not bra:
         return False, 0
+    # If branch tab has no usable date (new May format), fall back to RA-only.
+    if not row.transaction_date:
+        for c in candidates:
+            if not c.ra_number or not c.ra_number[0].isdigit():
+                continue
+            if ra_matches(bra, normalize_ra(c.ra_number)):
+                return True, 0
+        return False, 0
     best_days = CARS_DATE_WINDOW_DAYS + 1
     for c in candidates:
         if not c.ra_number or not c.ra_number[0].isdigit():

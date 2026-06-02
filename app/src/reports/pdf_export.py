@@ -27,6 +27,8 @@ from .fuel_card_labels import card_not_on_tab_action, tab_not_on_card_action
 
 
 def _fmt_date(iso: str) -> str:
+    if not iso:
+        return ""
     try:
         return datetime.strptime(iso[:10], "%Y-%m-%d").strftime("%d %b %Y")
     except ValueError:
