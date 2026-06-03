@@ -155,14 +155,15 @@ def _date_proximity_score(branch_date, statement_date) -> int:
 def _match_score(branch: BranchLitresRow, statement: FuelStatementRow) -> int:
     if branch.branch != statement.branch:
         return -1
-    if not branch.transaction_date:
-        return -1
     if not _litres_match(branch.litres, statement.litres):
         return -1
     bra = normalize_ra(branch.ra_number)
     stmt_ra = normalize_ra(statement.ra_number or "")
     if stmt_ra and bra and not ra_matches(bra, stmt_ra):
         return -1
+    # May branch tabs: RA + litres only (no date) — match on litres (+ RA when present).
+    if not branch.transaction_date:
+        return 1000
     prox = _date_proximity_score(branch.transaction_date, statement.transaction_date)
     if prox < 0:
         return -1
@@ -342,10 +343,7 @@ def reconcile(
     summaries: dict[str, BranchSummary] = {}
 
     for branch in branches:
-        branch_has_dates = any(
-            r.branch == branch and bool(r.transaction_date) for r in branch_rows
-        )
-        if statement_rows and branch_has_dates:
+        if statement_rows:
             u1, s1 = _reconcile_branch_stage(
                 branch, branch_rows, statement_rows, stage="stage1", include_nonrev=True
             )

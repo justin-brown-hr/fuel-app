@@ -187,10 +187,16 @@ def _detect_format(text: str) -> str:
 def import_fuel_statement(path: Path) -> list[FuelStatementRow]:
     suffix = path.suffix.lower()
     if suffix in (".xlsx", ".xls"):
+        from .fuel_statement_excel import import_fuel_statement_excel
+
+        rows = import_fuel_statement_excel(path)
+        if rows:
+            return rows
+        # Legacy simple template: columns named litres / date / branch
         import pandas as pd
 
         df = pd.read_excel(path, header=0)
-        rows: list[FuelStatementRow] = []
+        legacy: list[FuelStatementRow] = []
         for _, r in df.iterrows():
             litres = safe_float(r.get("litres") or r.get("Litres"))
             if litres is None or litres <= 0:
@@ -198,9 +204,12 @@ def import_fuel_statement(path: Path) -> list[FuelStatementRow]:
             tx_date = parse_excel_date(r.get("date") or r.iloc[0])
             if tx_date is None:
                 continue
-            rows.append(
+            branch = str(r.get("branch", "Other"))
+            if branch == "Other":
+                branch = _branch_from_text(str(path))
+            legacy.append(
                 FuelStatementRow(
-                    branch=str(r.get("branch", "Other")),
+                    branch=branch,
                     transaction_date=tx_date,
                     time=None,
                     supplier=str(r.get("supplier", "")),
@@ -210,7 +219,7 @@ def import_fuel_statement(path: Path) -> list[FuelStatementRow]:
                     card_or_invoice="",
                 )
             )
-        return _client_rows(rows)
+        return _client_rows(legacy)
 
     text_parts: list[str] = []
     with pdfplumber.open(path) as pdf:

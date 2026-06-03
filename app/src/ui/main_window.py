@@ -119,15 +119,30 @@ class DropZone(QFrame):
 
 def _classify_file(path: Path) -> str | None:
     name = path.name.lower()
-    if "litre" in name or "liters" in name or "branch" in name:
-        return "branch"
     if "cars" in name or "car+" in name:
         return "cars"
-    if path.suffix.lower() in (".pdf", ".xlsx", ".xls"):
-        if "statement" in name or "farmlands" in name or "mobil" in name or "fuel" in name:
+    # Fuel statement (PDF or Excel): card, Farmlands, Mobil, branch tank export, etc.
+    if path.suffix.lower() == ".pdf":
+        return "fuel"
+    if path.suffix.lower() in (".xlsx", ".xls"):
+        if any(
+            k in name
+            for k in (
+                "statement",
+                "statememt",
+                "farmlands",
+                "mobil",
+                "tank",
+                "fuel charge",
+            )
+        ):
             return "fuel"
-        if path.suffix.lower() == ".pdf":
+        if "fuel" in name and "litre" not in name and "liters" not in name:
             return "fuel"
+    if "litre" in name or "liters" in name or "branch fuel" in name:
+        return "branch"
+    if "branch" in name and "litre" in name:
+        return "branch"
     if path.suffix.lower() in (".xlsx", ".xls"):
         return "branch"
     return None

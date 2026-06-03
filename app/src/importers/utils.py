@@ -75,7 +75,10 @@ def parse_time(value) -> Optional[str]:
         return f"{s[:2]}:{s[2:]}"
     if re.fullmatch(r"\d{1,2}:\d{2}", s):
         return s
-    return s
+    m = re.search(r"(\d{1,2}):(\d{2})", s)
+    if m:
+        return f"{int(m.group(1)):02d}:{m.group(2)}"
+    return None
 
 
 def safe_float(value) -> Optional[float]:
