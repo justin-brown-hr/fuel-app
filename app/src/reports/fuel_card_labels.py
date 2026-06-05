@@ -22,7 +22,14 @@ def fuel_card_label_for_branch(report: dict[str, Any]) -> str:
 
     mobil = sum(1 for s in suppliers if "mobil" in s)
     caltex = sum(1 for s in suppliers if "caltex" in s or "farmlands" in s)
+    tank = sum(1 for s in suppliers if "branch tank" in s)
 
+    if tank and caltex:
+        return "Farmlands + branch tank"
+    if tank and mobil:
+        return "Mobil + branch tank"
+    if tank and not caltex and not mobil:
+        return "branch tank"
     if mobil and not caltex:
         return "Mobil"
     if caltex and not mobil:
@@ -30,6 +37,29 @@ def fuel_card_label_for_branch(report: dict[str, Any]) -> str:
     if mobil and caltex:
         return "fuel card"
     return "fuel card"
+
+
+def statement_source_summary(report: dict[str, Any]) -> str:
+    """Plain breakdown of imported statement lines for this branch."""
+    rows = report.get("statement") or []
+    if not rows:
+        return ""
+    caltex = sum(
+        1
+        for r in rows
+        if "caltex" in (r.get("supplier") or "").lower()
+        or "farmlands" in (r.get("supplier") or "").lower()
+    )
+    mobil = sum(1 for r in rows if "mobil" in (r.get("supplier") or "").lower())
+    tank = sum(1 for r in rows if "branch tank" in (r.get("supplier") or "").lower())
+    parts: list[str] = []
+    if caltex:
+        parts.append(f"{caltex} Farmlands/Caltex")
+    if mobil:
+        parts.append(f"{mobil} Mobil")
+    if tank:
+        parts.append(f"{tank} branch tank")
+    return " + ".join(parts)
 
 
 def card_not_on_tab_summary_text(report: dict[str, Any], count: int) -> str:

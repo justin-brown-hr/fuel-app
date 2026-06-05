@@ -9,6 +9,7 @@ from src.reports.cars_plus_note import cars_section_empty_note
 from src.reports.fuel_card_labels import (
     card_not_on_tab_action,
     card_not_on_tab_summary_text,
+    statement_source_summary,
     tab_not_on_card_action,
     tab_not_on_card_summary_text,
 )
@@ -87,11 +88,23 @@ def attention_summary_bullets(report: dict[str, Any]) -> list[str]:
     n_cred = att["credit_reversal_count"]
     loc = cars_loc_label(branch)
 
+    stmt_sources = statement_source_summary(report)
+    if total == 0:
+        match_line = (
+            "<b>No fuel statement imported for this branch.</b> "
+            "Add Farmlands/Mobil PDF and any branch tank Excel (e.g. Rotorua), "
+            "then re-import all files together."
+        )
+    else:
+        match_line = (
+            f"<b>{matched}</b> of <b>{total}</b> fuel statement fill-ups match the "
+            f"branch tab (incl. NONREV). Tables below list only follow-ups."
+        )
+        if stmt_sources:
+            match_line += f" Statement loaded: {stmt_sources}."
+
     bullets = [
-        (
-            f"<b>{matched}</b> of <b>{total}</b> card fill-ups match the branch tab "
-            f"(incl. NONREV). Tables below list only follow-ups."
-        ),
+        match_line,
         card_not_on_tab_summary_text(report, n_card),
         tab_not_on_card_summary_text(report, n_tab),
         (

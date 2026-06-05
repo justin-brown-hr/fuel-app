@@ -244,6 +244,10 @@ def _reconcile_branch_stage(
     stage_label = "Stage 1 (incl. NONREV)" if include_nonrev else "Stage 2 (operational)"
 
     unmatched = []
+    # No statement for this branch — cannot flag tab rows as "missing on card".
+    if not stmt_active:
+        um_branch = []
+
     for row in um_branch:
         nonrev = is_branch_nonrev(row)
         unmatched.append(

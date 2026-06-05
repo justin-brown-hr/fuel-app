@@ -300,9 +300,12 @@ class MainWindow(QMainWindow):
         self.table.verticalHeader().setDefaultSectionSize(40)
         hdr = self.table.horizontalHeader()
         hdr.setStretchLastSection(False)
-        hdr.setSectionResizeMode(4, QHeaderView.Stretch)
+        for col in range(4):
+            hdr.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(4, QHeaderView.Interactive)
         hdr.setSectionResizeMode(5, QHeaderView.Fixed)
-        self.table.setColumnWidth(5, 96)
+        self.table.setColumnWidth(4, 280)
+        self.table.setColumnWidth(5, 88)
         self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -414,6 +417,15 @@ class MainWindow(QMainWindow):
             f"{result.unmatched_count} flags · "
             f"{credits_total} credits skipped"
         )
+        if result.fuel_statement_count == 0:
+            QMessageBox.warning(
+                self,
+                "No fuel statements",
+                "No fuel statement lines were imported.\n\n"
+                "Add Farmlands/Mobil PDFs and branch tank Excel files "
+                "(e.g. Rotorua), then import again.\n\n"
+                "Without statements, card-vs-tab matching cannot run.",
+            )
         if result.errors:
             self.status_label.setText(
                 self.status_label.text() + " · Warnings: " + "; ".join(result.errors)
@@ -503,9 +515,12 @@ class MainWindow(QMainWindow):
         batch_id = self.current_batch_id
 
         for i, r in enumerate(rows):
+            date_val = r["transaction_date"]
+            if not date_val:
+                date_val = "—"
             vals = [
                 r["category"],
-                r["transaction_date"],
+                date_val,
                 f"{r['litres']:.2f}L",
                 r.get("detail") or "",
                 r.get("action") or "",
@@ -515,9 +530,8 @@ class MainWindow(QMainWindow):
                 if j == 0:
                     item.setForeground(Qt.darkBlue)
                 if j == 4:
-                    item.setTextAlignment(
-                        Qt.AlignLeft | Qt.AlignVCenter
-                    )
+                    item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                    item.setToolTip(str(v))
                 self.table.setItem(i, j, item)
 
             self.table.setCellWidget(
@@ -529,9 +543,10 @@ class MainWindow(QMainWindow):
         hdr = self.table.horizontalHeader()
         for col in range(4):
             hdr.setSectionResizeMode(col, QHeaderView.ResizeToContents)
-        hdr.setSectionResizeMode(4, QHeaderView.Stretch)
+        hdr.setSectionResizeMode(4, QHeaderView.Interactive)
         hdr.setSectionResizeMode(5, QHeaderView.Fixed)
-        self.table.setColumnWidth(5, 96)
+        self.table.setColumnWidth(4, 280)
+        self.table.setColumnWidth(5, 88)
         self.table.resizeRowsToContents()
         for row in range(self.table.rowCount()):
             self.table.setRowHeight(row, max(self.table.rowHeight(row), 40))
